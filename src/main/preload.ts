@@ -96,6 +96,8 @@ const api = {
       ipcRenderer.invoke('data:export'),
     import: (): Promise<IPCResponse<{ groupsCount: number; itemsCount: number }>> =>
       ipcRenderer.invoke('data:import'),
+    importSyncFile: (): Promise<IPCResponse<{ groupsCount: number; itemsCount: number }>> =>
+      ipcRenderer.invoke('data:importSyncFile'),
     importBrowserBookmarks: (groupId: string): Promise<IPCResponse<{ count: number }>> =>
       ipcRenderer.invoke('data:importBrowserBookmarks', groupId),
   },

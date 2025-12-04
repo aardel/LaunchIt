@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { 
-  X, Monitor, Moon, Sun, RefreshCw, Download, Upload, FileUp, Check, Globe,
+  X, RefreshCw, Download, Upload, FileUp, Check, Globe,
   Settings, Wifi, Database, Info, Terminal, Palette, Image, Loader2, Shield,
   Lock, Eye, EyeOff, AlertCircle, Keyboard, Command, Cloud, CloudOff, CheckCircle2
 } from 'lucide-react';
@@ -46,7 +46,6 @@ export function SettingsModal() {
   };
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
-  const [theme, setTheme] = useState<'dark' | 'light' | 'system'>('dark');
   const [defaultProfile, setDefaultProfile] = useState<NetworkProfile>('local');
   const [defaultTerminal, setDefaultTerminal] = useState('Terminal');
   const [isRefreshingTailscale, setIsRefreshingTailscale] = useState(false);
@@ -78,7 +77,6 @@ export function SettingsModal() {
 
   useEffect(() => {
     if (settings) {
-      setTheme(settings.theme);
       setDefaultProfile(settings.defaultProfile);
       setDefaultTerminal(settings.defaultTerminal || 'Terminal');
       setSyncEnabled(settings.syncEnabled || false);
@@ -255,38 +253,6 @@ export function SettingsModal() {
             {/* General Tab */}
             {activeTab === 'general' && (
               <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-medium text-dark-100 mb-4">Appearance</h3>
-                  <label className="input-label">Theme</label>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { id: 'light', label: 'Light', icon: Sun },
-                      { id: 'dark', label: 'Dark', icon: Moon },
-                      { id: 'system', label: 'System', icon: Monitor },
-                    ].map((option) => {
-                      const Icon = option.icon;
-                      return (
-                        <button
-                          key={option.id}
-                          onClick={async () => {
-                            const newTheme = option.id as typeof theme;
-                            setTheme(newTheme);
-                            // Save theme to settings immediately
-                            await updateSettings({ theme: newTheme });
-                          }}
-                          className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-all
-                                   ${theme === option.id
-                                     ? 'border-accent-primary bg-accent-primary/10 text-accent-primary'
-                                     : 'border-dark-700 bg-dark-800 text-dark-400 hover:border-dark-600'}`}
-                        >
-                          <Icon className="w-5 h-5" />
-                          <span className="text-sm">{option.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
                 {/* Favicons */}
                 <div>
                   <h3 className="text-lg font-medium text-dark-100 mb-4">Website Icons</h3>
@@ -800,6 +766,40 @@ export function SettingsModal() {
                             Last synced: {new Date(settings.lastSync).toLocaleString()}
                           </p>
                         )}
+
+                        <div className="relative my-4">
+                          <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-dark-700" />
+                          </div>
+                          <div className="relative flex justify-center text-xs">
+                            <span className="px-2 bg-dark-800 text-dark-500">or import manually</span>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={async () => {
+                            setImportStatus('Importing sync file...');
+                            try {
+                              const result = await window.api.data.importSyncFile();
+                              if (result.success && result.data) {
+                                setImportStatus(`Imported ${result.data.groupsCount} groups and ${result.data.itemsCount} items from sync file`);
+                                await loadData();
+                                setTimeout(() => setImportStatus(null), 3000);
+                              } else {
+                                setImportStatus(result.error || 'Import failed');
+                              }
+                            } catch (error) {
+                              setImportStatus('Import failed');
+                            }
+                          }}
+                          className="btn-secondary w-full"
+                        >
+                          <FileUp className="w-4 h-4" />
+                          Import Sync File
+                        </button>
+                        <p className="text-xs text-dark-500 mt-1">
+                          Import a manually downloaded sync file (launchpad-data.json)
+                        </p>
                       </>
                     )}
                   </div>

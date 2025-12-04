@@ -173,6 +173,7 @@ export class DatabaseService {
         autoLockMinutes: 0,
         showInMenuBar: false,
         launchAtStartup: false,
+        cardViewMode: 'normal',
       };
 
       for (const [key, value] of Object.entries(defaultSettings)) {

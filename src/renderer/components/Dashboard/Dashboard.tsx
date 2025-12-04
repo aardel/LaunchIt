@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Plus, Play } from 'lucide-react';
+import { Plus, Play, LayoutGrid, Grid3x3, List } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { SortableGroupSection } from './SortableGroupSection';
 import { BatchOperationsBar } from './BatchOperationsBar';
@@ -13,7 +13,44 @@ export function Dashboard() {
     searchQuery,
     openAddModal,
     launchGroup,
+    settings,
   } = useStore();
+
+  const cardViewMode = settings?.cardViewMode || 'normal';
+
+  const toggleViewMode = async () => {
+    // Cycle through: normal -> compact -> list -> normal
+    const modes: ('normal' | 'compact' | 'list')[] = ['normal', 'compact', 'list'];
+    const currentIndex = modes.indexOf(cardViewMode as any);
+    const newMode = modes[(currentIndex + 1) % modes.length];
+    await window.api.settings.update({ cardViewMode: newMode });
+    const res = await window.api.settings.get();
+    if (res.success && res.data) {
+      useStore.setState({ settings: res.data });
+    }
+  };
+
+  const getViewModeIcon = () => {
+    switch (cardViewMode) {
+      case 'compact':
+        return <Grid3x3 className="w-4 h-4" />;
+      case 'list':
+        return <List className="w-4 h-4" />;
+      default:
+        return <LayoutGrid className="w-4 h-4" />;
+    }
+  };
+
+  const getViewModeTitle = () => {
+    switch (cardViewMode) {
+      case 'compact':
+        return 'Switch to list view';
+      case 'list':
+        return 'Switch to normal view';
+      default:
+        return 'Switch to compact view';
+    }
+  };
 
   // Filter and group items
   const { displayGroups, filteredItems } = useMemo(() => {
@@ -79,6 +116,13 @@ export function Dashboard() {
           </div>
 
           <div className="flex items-center gap-3">
+            <button
+              onClick={toggleViewMode}
+              className="btn-secondary"
+              title={getViewModeTitle()}
+            >
+              {getViewModeIcon()}
+            </button>
             {selectedGroupId && (
               <button
                 onClick={() => launchGroup(selectedGroupId)}
@@ -109,6 +153,7 @@ export function Dashboard() {
                 group={group}
                 items={filteredItems[group.id] || []}
                 onLaunchAll={() => launchGroup(group.id)}
+                cardViewMode={cardViewMode}
               />
             ))}
           </div>

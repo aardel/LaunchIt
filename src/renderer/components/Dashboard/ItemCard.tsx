@@ -35,7 +35,7 @@ const typeColors = {
   password: 'text-accent-primary',
 };
 
-export function ItemCard({ item }: { item: AnyItem }) {
+export function ItemCard({ item, compact = false }: { item: AnyItem; compact?: boolean }) {
   const { 
     launchItem, 
     openEditModal, 
@@ -292,7 +292,7 @@ export function ItemCard({ item }: { item: AnyItem }) {
       <div
         ref={cardRef}
         onMouseMove={handleMouseMove}
-        className={`card-base p-4 cursor-pointer group relative ${
+        className={`card-base ${compact ? 'p-3' : 'p-4'} cursor-pointer group relative ${
           isSelectionMode && isSelected ? 'ring-2 ring-accent-primary' : ''
         }`}
         style={
@@ -307,30 +307,30 @@ export function ItemCard({ item }: { item: AnyItem }) {
 
         {/* Menu Button - Positioned absolute */}
         <div 
-          className="absolute top-3 right-3 z-50"
+          className={`absolute z-50 ${compact ? 'top-2 right-2' : 'top-3 right-3'}`}
           onClick={openMenu}
           onMouseDown={(e) => e.stopPropagation()}
         >
-          <div className="p-1.5 rounded-lg text-dark-400 hover:text-dark-200 hover:bg-dark-700 transition-colors cursor-pointer">
-            <MoreVertical className="w-4 h-4 pointer-events-none" />
+          <div className={`${compact ? 'p-1' : 'p-1.5'} rounded-lg text-dark-400 hover:text-dark-200 hover:bg-dark-700 transition-colors cursor-pointer`}>
+            <MoreVertical className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
           </div>
         </div>
 
         {/* Selection Checkbox */}
         {isSelectionMode && (
-          <div className="absolute top-3 left-3 z-20">
+          <div className={`absolute z-20 ${compact ? 'top-2 left-2' : 'top-3 left-3'}`}>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 toggleItemSelection(item.id);
               }}
-              className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-all ${
+              className={`${compact ? 'w-5 h-5' : 'w-6 h-6'} rounded border-2 flex items-center justify-center transition-all ${
                 isSelected
                   ? 'bg-accent-primary border-accent-primary text-white'
                   : 'bg-dark-800 border-dark-600 hover:border-dark-500'
               }`}
             >
-              {isSelected && <Check className="w-4 h-4" />}
+              {isSelected && <Check className={compact ? 'w-3 h-3' : 'w-4 h-4'} />}
             </button>
           </div>
         )}
@@ -347,10 +347,10 @@ export function ItemCard({ item }: { item: AnyItem }) {
           }}
         >
           {/* Header */}
-          <div className="flex items-start justify-between mb-3">
+          <div className={`flex items-start justify-between ${compact ? 'mb-2' : 'mb-3'}`}>
             {/* Icon */}
             <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl overflow-hidden"
+              className={`${compact ? 'w-8 h-8 text-lg' : 'w-12 h-12 text-2xl'} rounded-xl flex items-center justify-center overflow-hidden`}
               style={{
                 backgroundColor: item.color ? `${item.color}20` : 'rgba(99, 102, 241, 0.1)',
               }}
@@ -361,29 +361,31 @@ export function ItemCard({ item }: { item: AnyItem }) {
                 <img
                   src={faviconUrl}
                   alt=""
-                  className="w-7 h-7 object-contain"
+                  className={compact ? 'w-5 h-5' : 'w-7 h-7'}
                   onError={() => setFaviconError(true)}
                 />
               ) : (
-                <TypeIcon className={`w-6 h-6 ${typeColors[item.type]}`} />
+                <TypeIcon className={`${compact ? 'w-4 h-4' : 'w-6 h-6'} ${typeColors[item.type]}`} />
               )}
             </div>
             {/* Spacer for menu button */}
-            <div className="w-8 h-8" />
+            <div className={compact ? 'w-6 h-6' : 'w-8 h-8'} />
           </div>
 
           {/* Title */}
-          <h3 className="font-semibold text-dark-100 mb-1 truncate">{item.name}</h3>
+          <h3 className={`${compact ? 'text-sm' : 'font-semibold'} text-dark-100 ${compact ? 'mb-0.5' : 'mb-1'} truncate`}>{item.name}</h3>
 
           {/* Subtitle */}
-          <p className="text-sm text-dark-400 truncate font-mono">{getSubtitle()}</p>
+          {!compact && (
+            <p className="text-sm text-dark-400 truncate font-mono">{getSubtitle()}</p>
+          )}
 
           {/* Footer */}
-          <div className="flex items-center justify-between mt-3 pt-3 border-t border-dark-700/50">
+          <div className={`flex items-center justify-between ${compact ? 'mt-2 pt-2' : 'mt-3 pt-3'} border-t border-dark-700/50`}>
             {/* Type badge */}
             <span
-              className={`text-xs font-medium capitalize ${typeColors[item.type]} 
-                         bg-current/10 px-2 py-0.5 rounded`}
+              className={`${compact ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-0.5'} font-medium capitalize ${typeColors[item.type]} 
+                         bg-current/10 rounded`}
             >
               {item.type}
             </span>
@@ -394,11 +396,11 @@ export function ItemCard({ item }: { item: AnyItem }) {
             {/* Has credentials indicator */}
             {((item.type === 'bookmark' || item.type === 'ssh') && 
               (item as BookmarkItem | SSHItem).credentials) && (
-              <Key className="w-3.5 h-3.5 text-accent-warning" title="Has credentials" />
+              <Key className={`${compact ? 'w-3 h-3' : 'w-3.5 h-3.5'} text-accent-warning`} title="Has credentials" />
             )}
 
-            {/* Access count */}
-            {item.accessCount > 0 && (
+            {/* Access count - hide in compact mode */}
+            {!compact && item.accessCount > 0 && (
               <span className="text-xs text-dark-500">
                 {item.accessCount} {item.accessCount === 1 ? 'visit' : 'visits'}
               </span>

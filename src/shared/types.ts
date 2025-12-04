@@ -123,6 +123,7 @@ export interface AppSettings {
   autoLockMinutes: number;
   showInMenuBar: boolean;
   launchAtStartup: boolean;
+  cardViewMode: 'normal' | 'compact' | 'list'; // Card display mode
   // Encryption
   encryptionSalt?: string;
   encryptionVerification?: string;

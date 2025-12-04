@@ -9,6 +9,14 @@ export interface ExportData {
   items: AnyItem[];
 }
 
+// Sync format (used by WebDAV sync)
+export interface SyncData {
+  version: number;
+  lastSync: string;
+  groups: Group[];
+  items: AnyItem[];
+}
+
 export class ImportExportService {
   async exportData(groups: Group[], items: AnyItem[]): Promise<{ success: boolean; path?: string; error?: string }> {
     try {
@@ -56,7 +64,73 @@ export class ImportExportService {
       }
 
       const fileContent = readFileSync(result.filePaths[0], 'utf-8');
-      const data = JSON.parse(fileContent) as ExportData;
+      const parsed = JSON.parse(fileContent);
+
+      // Check if it's sync format (version is number) or export format (version is string)
+      let data: ExportData;
+      
+      if (typeof parsed.version === 'number' && parsed.lastSync) {
+        // Sync format - convert to export format
+        data = {
+          version: String(parsed.version),
+          exportedAt: parsed.lastSync,
+          groups: parsed.groups || [],
+          items: parsed.items || [],
+        };
+      } else if (typeof parsed.version === 'string' && parsed.exportedAt) {
+        // Export format - use as is
+        data = parsed as ExportData;
+      } else {
+        return { success: false, error: 'Invalid file format' };
+      }
+
+      // Validate the data structure
+      if (!data.version || !data.groups || !data.items) {
+        return { success: false, error: 'Invalid file format' };
+      }
+
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  }
+
+  // Import sync format file (same as importData but with different dialog title)
+  async importSyncFile(): Promise<{ success: boolean; data?: ExportData; error?: string }> {
+    try {
+      const result = await dialog.showOpenDialog({
+        title: 'Import Sync File',
+        filters: [
+          { name: 'JSON Files', extensions: ['json'] },
+          { name: 'All Files', extensions: ['*'] },
+        ],
+        properties: ['openFile'],
+      });
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return { success: false, error: 'Import cancelled' };
+      }
+
+      const fileContent = readFileSync(result.filePaths[0], 'utf-8');
+      const parsed = JSON.parse(fileContent);
+
+      // Handle both sync format and export format
+      let data: ExportData;
+      
+      if (typeof parsed.version === 'number' && parsed.lastSync) {
+        // Sync format - convert to export format
+        data = {
+          version: String(parsed.version),
+          exportedAt: parsed.lastSync,
+          groups: parsed.groups || [],
+          items: parsed.items || [],
+        };
+      } else if (typeof parsed.version === 'string' && parsed.exportedAt) {
+        // Export format - use as is
+        data = parsed as ExportData;
+      } else {
+        return { success: false, error: 'Invalid file format' };
+      }
 
       // Validate the data structure
       if (!data.version || !data.groups || !data.items) {

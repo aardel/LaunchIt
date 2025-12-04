@@ -6,9 +6,10 @@ import type { AnyItem } from '@shared/types';
 
 interface SortableItemCardProps {
   item: AnyItem;
+  compact?: boolean;
 }
 
-export function SortableItemCard({ item }: SortableItemCardProps) {
+export function SortableItemCard({ item, compact = false }: SortableItemCardProps) {
   const { isSelectionMode } = useStore();
   const {
     attributes,
@@ -46,7 +47,7 @@ export function SortableItemCard({ item }: SortableItemCardProps) {
           <GripVertical className="w-4 h-4" />
         </div>
       )}
-      <ItemCard item={item} />
+      <ItemCard item={item} compact={compact} />
     </div>
   );
 }

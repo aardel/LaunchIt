@@ -73,6 +73,13 @@ function createWindow() {
     mainWindow?.show();
   });
 
+  // Fallback: show window after 3 seconds even if ready-to-show didn't fire
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isVisible()) {
+      mainWindow.show();
+    }
+  }, 3000);
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -307,14 +314,13 @@ function setupIPC() {
   });
 
   // ===== System =====
-  ipcMain.handle('system:getTheme', async (): Promise<IPCResponse<'dark' | 'light'>> => {
-    return { success: true, data: nativeTheme.shouldUseDarkColors ? 'dark' : 'light' };
-  });
 
-  // Listen for system theme changes and notify renderer
-  nativeTheme.on('updated', () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('system:theme-changed');
+  ipcMain.handle('system:getTheme', async (): Promise<IPCResponse<'dark' | 'light'>> => {
+    try {
+      const theme = nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
+      return { success: true, data: theme };
+    } catch (error) {
+      return { success: false, error: String(error) };
     }
   });
 
@@ -409,6 +415,67 @@ function setupIPC() {
         itemsImported++;
       }
 
+      return { 
+        success: true, 
+        data: { 
+          groupsCount: result.data.groups.length,
+          itemsCount: itemsImported,
+        } 
+      };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  ipcMain.handle('data:importSyncFile', async (): Promise<IPCResponse<{ groupsCount: number; itemsCount: number }>> => {
+    try {
+      const result = await importExport.importSyncFile();
+      
+      if (!result.success || !result.data) {
+        return { success: false, error: result.error };
+      }
+
+      const database = getDb();
+      
+      // Import groups first (to get IDs)
+      const groupIdMap = new Map<string, string>();
+      for (const group of result.data.groups) {
+        const newGroup = database.createGroup({
+          name: group.name,
+          icon: group.icon,
+          color: group.color,
+          defaultProfile: group.defaultProfile,
+          batchOpenDelay: group.batchOpenDelay,
+        });
+        groupIdMap.set(group.id, newGroup.id);
+      }
+
+      // Import items with mapped group IDs
+      let itemsImported = 0;
+      for (const item of result.data.items) {
+        const newGroupId = groupIdMap.get(item.groupId);
+        if (!newGroupId) continue;
+
+        database.createItem({
+          type: item.type,
+          name: item.name,
+          description: item.description,
+          icon: item.icon,
+          color: item.color,
+          groupId: newGroupId,
+          tags: item.tags,
+          protocol: (item as any).protocol,
+          port: (item as any).port,
+          path: (item as any).path,
+          networkAddresses: (item as any).networkAddresses,
+          username: (item as any).username,
+          appPath: (item as any).appPath,
+          arguments: (item as any).arguments,
+        });
+        itemsImported++;
+      }
+
+      triggerSync();
       return { 
         success: true, 
         data: { 
