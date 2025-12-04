@@ -1,5 +1,5 @@
 import { useSortable } from '@dnd-kit/sortable';
-import { GripVertical, ChevronRight, Play, MoreHorizontal, Globe, Terminal, AppWindow } from 'lucide-react';
+import { GripVertical, ChevronRight, Play, MoreHorizontal, Globe, Terminal, AppWindow, Key } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import type { Group, AnyItem } from '@shared/types';
 
@@ -18,6 +18,7 @@ const typeIcons = {
   bookmark: Globe,
   ssh: Terminal,
   app: AppWindow,
+  password: Key,
 };
 
 export function SortableGroupItem({
@@ -131,6 +132,11 @@ export function SortableGroupItem({
         <div className="ml-6 mt-0.5 space-y-0.5">
           {sortedItems.map((item) => {
             const TypeIcon = typeIcons[item.type];
+            // Fallback to a default icon if type is not found
+            if (!TypeIcon) {
+              console.warn(`Unknown item type: ${item.type}`);
+              return null;
+            }
             return (
               <button
                 key={item.id}

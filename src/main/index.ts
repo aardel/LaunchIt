@@ -311,6 +311,13 @@ function setupIPC() {
     return { success: true, data: nativeTheme.shouldUseDarkColors ? 'dark' : 'light' };
   });
 
+  // Listen for system theme changes and notify renderer
+  nativeTheme.on('updated', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('system:theme-changed');
+    }
+  });
+
   ipcMain.handle('system:selectApp', async (): Promise<IPCResponse<string | null>> => {
     const { dialog } = await import('electron');
     const result = await dialog.showOpenDialog(mainWindow!, {

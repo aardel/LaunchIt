@@ -13,6 +13,64 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 function App() {
   const { loadData, isLoading, error, refreshTailscaleStatus, fetchFavicons, refreshExpiredFavicons, items, setSyncStatus, settings, isVaultSetup, isVaultLocked } = useStore();
 
+  // Theme management
+  useEffect(() => {
+    const applyTheme = async (theme: 'dark' | 'light' | 'system') => {
+      const htmlElement = document.documentElement;
+      
+      if (theme === 'system') {
+        // Get system theme
+        const systemThemeRes = await window.api.system.getTheme();
+        const systemTheme = systemThemeRes.success ? systemThemeRes.data : 'dark';
+        if (systemTheme === 'dark') {
+          htmlElement.classList.add('dark');
+        } else {
+          htmlElement.classList.remove('dark');
+        }
+      } else {
+        // Apply explicit theme
+        if (theme === 'dark') {
+          htmlElement.classList.add('dark');
+        } else {
+          htmlElement.classList.remove('dark');
+        }
+      }
+    };
+
+    if (settings?.theme) {
+      applyTheme(settings.theme);
+    } else {
+      // Default to dark if no theme is set
+      document.documentElement.classList.add('dark');
+    }
+  }, [settings?.theme]);
+
+  // Listen for system theme changes when theme is set to "system"
+  useEffect(() => {
+    if (settings?.theme !== 'system') return;
+
+    const handleSystemThemeChange = async () => {
+      const systemThemeRes = await window.api.system.getTheme();
+      const systemTheme = systemThemeRes.success ? systemThemeRes.data : 'dark';
+      const htmlElement = document.documentElement;
+      
+      if (systemTheme === 'dark') {
+        htmlElement.classList.add('dark');
+      } else {
+        htmlElement.classList.remove('dark');
+      }
+    };
+
+    // Access ipcRenderer via window.electron (exposed by preload)
+    // @ts-ignore - window.electron is available in Electron context
+    if (window.electron?.ipcRenderer) {
+      window.electron.ipcRenderer.on('system:theme-changed', handleSystemThemeChange);
+      return () => {
+        window.electron.ipcRenderer.removeListener('system:theme-changed', handleSystemThemeChange);
+      };
+    }
+  }, [settings?.theme]);
+
   useEffect(() => {
     loadData();
     

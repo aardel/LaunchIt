@@ -36,6 +36,14 @@ const SHORTCUTS = [
 
 export function SettingsModal() {
   const { isSettingsOpen, closeSettings, settings, tailscaleStatus, refreshTailscaleStatus, groups, loadData, fetchFavicons, isFetchingFavicons, faviconProgress, isVaultSetup, lockVault } = useStore();
+  
+  // Helper to update settings and refresh store
+  const updateSettings = async (updates: Partial<typeof settings>) => {
+    const res = await window.api.settings.update(updates);
+    if (res.success && res.data) {
+      useStore.setState({ settings: res.data });
+    }
+  };
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const [theme, setTheme] = useState<'dark' | 'light' | 'system'>('dark');
@@ -260,7 +268,12 @@ export function SettingsModal() {
                       return (
                         <button
                           key={option.id}
-                          onClick={() => setTheme(option.id as typeof theme)}
+                          onClick={async () => {
+                            const newTheme = option.id as typeof theme;
+                            setTheme(newTheme);
+                            // Save theme to settings immediately
+                            await updateSettings({ theme: newTheme });
+                          }}
                           className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-all
                                    ${theme === option.id
                                      ? 'border-accent-primary bg-accent-primary/10 text-accent-primary'
