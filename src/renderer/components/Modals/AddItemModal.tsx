@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Globe, Terminal, AppWindow, FolderOpen, Eye, EyeOff, Key } from 'lucide-react';
+import { X, Globe, Terminal, AppWindow, FolderOpen, Eye, EyeOff, Key, Sparkles, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import type { ItemType, Protocol, CreateItemInput } from '@shared/types';
 
@@ -13,7 +13,7 @@ const itemTypes: { id: ItemType; label: string; icon: typeof Globe; description:
 const protocols: Protocol[] = ['https', 'http', 'ftp', 'rdp', 'vnc', 'custom'];
 
 export function AddItemModal() {
-  const { isAddModalOpen, closeAddModal, createItem, groups, selectedGroupId } = useStore();
+  const { isAddModalOpen, closeAddModal, createItem, groups, selectedGroupId, items, settings } = useStore();
 
   const [step, setStep] = useState<'type' | 'form'>('type');
   const [selectedType, setSelectedType] = useState<ItemType>('bookmark');
@@ -22,6 +22,8 @@ export function AddItemModal() {
   // Form state
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagsInput, setTagsInput] = useState('');
   const [groupId, setGroupId] = useState(selectedGroupId || groups[0]?.id || '');
   const [icon, setIcon] = useState('');
   const [color, setColor] = useState('#6366f1');
@@ -50,6 +52,11 @@ export function AddItemModal() {
   const [service, setService] = useState('');
   const [passwordUrl, setPasswordUrl] = useState('');
   const [passwordNotes, setPasswordNotes] = useState('');
+  
+  // AI state
+  const [isAiGenerating, setIsAiGenerating] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [similarItems, setSimilarItems] = useState<Array<{ id: string; name: string; url?: string }> | null>(null);
 
   // Reset form when modal opens
   useEffect(() => {
@@ -58,6 +65,8 @@ export function AddItemModal() {
       setSelectedType('bookmark');
       setName('');
       setDescription('');
+      setTags([]);
+      setTagsInput('');
       setGroupId(selectedGroupId || groups[0]?.id || '');
       setIcon('');
       setColor('#6366f1');
@@ -107,6 +116,7 @@ export function AddItemModal() {
         type: selectedType,
         name: name.trim(),
         description: description.trim() || undefined,
+        tags: tags.length > 0 ? tags : undefined,
         groupId,
         icon: icon || undefined,
         color,
@@ -283,7 +293,52 @@ export function AddItemModal() {
               </div>
 
               <div>
-                <label className="input-label">Group *</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="input-label">Group *</label>
+                  {settings?.aiEnabled && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setIsAiGenerating(true);
+                        setAiError(null);
+                        try {
+                          const url = selectedType === 'bookmark' 
+                            ? `${protocol}://${localAddress}${port ? `:${port}` : ''}${path || ''}`
+                            : undefined;
+                          const res = await window.api.ai.categorizeItem(name, url, description);
+                          if (res.success && res.data) {
+                            // Find matching group
+                            const suggestedGroup = groups.find(g => 
+                              g.name.toLowerCase().includes(res.data!.toLowerCase()) ||
+                              res.data!.toLowerCase().includes(g.name.toLowerCase())
+                            );
+                            if (suggestedGroup) {
+                              setGroupId(suggestedGroup.id);
+                            }
+                          }
+                        } catch (error) {
+                          setAiError('Failed to get AI suggestion');
+                        } finally {
+                          setIsAiGenerating(false);
+                        }
+                      }}
+                      disabled={!name.trim() || isAiGenerating}
+                      className="text-xs text-accent-primary hover:text-accent-secondary flex items-center gap-1 disabled:opacity-50"
+                    >
+                      {isAiGenerating ? (
+                        <>
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          AI...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3 h-3" />
+                          AI Suggest
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
                 <div className="relative">
                   <FolderOpen className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-500" />
                   <select
@@ -334,7 +389,30 @@ export function AddItemModal() {
                     <input
                       type="text"
                       value={path}
-                      onChange={(e) => setPath(e.target.value)}
+                      onChange={async (e) => {
+                        setPath(e.target.value);
+                        // Check for duplicates when URL changes
+                        if (settings?.aiEnabled && name.trim() && localAddress.trim() && items.length > 0) {
+                          try {
+                            const url = `${protocol}://${localAddress}${port ? `:${port}` : ''}${e.target.value || ''}`;
+                            const existingItems = items
+                              .filter(item => item.type === 'bookmark')
+                              .map(item => ({
+                                id: item.id,
+                                name: item.name,
+                                url: `${item.protocol}://${item.networkAddresses?.local || ''}${item.port ? `:${item.port}` : ''}${item.path || ''}`,
+                              }));
+                            const res = await window.api.ai.findSimilarItems(name, url, existingItems);
+                            if (res.success && res.data && res.data.length > 0) {
+                              setSimilarItems(res.data);
+                            } else {
+                              setSimilarItems(null);
+                            }
+                          } catch (error) {
+                            // Silently fail
+                          }
+                        }
+                      }}
                       placeholder="/admin or /dashboard/page"
                       className="input-base"
                     />
@@ -616,7 +694,45 @@ export function AddItemModal() {
 
               {/* Description */}
               <div>
-                <label className="input-label">Description</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="input-label">Description</label>
+                  {settings?.aiEnabled && selectedType === 'bookmark' && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setIsAiGenerating(true);
+                        setAiError(null);
+                        try {
+                          const url = selectedType === 'bookmark' 
+                            ? `${protocol}://${localAddress}${port ? `:${port}` : ''}${path || ''}`
+                            : undefined;
+                          const res = await window.api.ai.generateDescription(name, url);
+                          if (res.success && res.data) {
+                            setDescription(res.data);
+                          }
+                        } catch (error) {
+                          setAiError('Failed to generate description');
+                        } finally {
+                          setIsAiGenerating(false);
+                        }
+                      }}
+                      disabled={!name.trim() || isAiGenerating}
+                      className="text-xs text-accent-primary hover:text-accent-secondary flex items-center gap-1 disabled:opacity-50"
+                    >
+                      {isAiGenerating ? (
+                        <>
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          AI...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3 h-3" />
+                          AI Generate
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
@@ -625,6 +741,116 @@ export function AddItemModal() {
                   className="input-base resize-none"
                 />
               </div>
+              
+              {/* Tags */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="input-label">Tags</label>
+                  {settings?.aiEnabled && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setIsAiGenerating(true);
+                        setAiError(null);
+                        try {
+                          const url = selectedType === 'bookmark' 
+                            ? `${protocol}://${localAddress}${port ? `:${port}` : ''}${path || ''}`
+                            : undefined;
+                          const res = await window.api.ai.suggestTags(name, url, description);
+                          if (res.success && res.data && res.data.length > 0) {
+                            setTags(res.data);
+                            setTagsInput(res.data.join(', '));
+                          }
+                        } catch (error) {
+                          setAiError('Failed to suggest tags');
+                        } finally {
+                          setIsAiGenerating(false);
+                        }
+                      }}
+                      disabled={!name.trim() || isAiGenerating}
+                      className="text-xs text-accent-primary hover:text-accent-secondary flex items-center gap-1 disabled:opacity-50"
+                    >
+                      {isAiGenerating ? (
+                        <>
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          AI...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3 h-3" />
+                          AI Suggest
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  value={tagsInput}
+                  onChange={(e) => {
+                    setTagsInput(e.target.value);
+                    // Parse tags (comma-separated)
+                    const newTags = e.target.value
+                      .split(',')
+                      .map(tag => tag.trim().toLowerCase())
+                      .filter(tag => tag.length > 0);
+                    setTags(newTags);
+                  }}
+                  placeholder="development, tools, productivity (comma-separated)"
+                  className="input-base"
+                />
+                {tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {tags.map((tag, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-accent-primary/20 text-accent-primary rounded-lg"
+                      >
+                        {tag}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newTags = tags.filter((_, i) => i !== index);
+                            setTags(newTags);
+                            setTagsInput(newTags.join(', '));
+                          }}
+                          className="hover:text-accent-secondary"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-dark-500 mt-1">
+                  Separate tags with commas. Tags help organize and search items.
+                </p>
+              </div>
+
+              {/* AI Error */}
+              {aiError && (
+                <div className="flex items-center gap-2 text-xs text-red-500 bg-red-500/10 border border-red-500/20 rounded-lg p-2">
+                  <AlertCircle className="w-4 h-4" />
+                  {aiError}
+                </div>
+              )}
+              
+              {/* Duplicate Detection */}
+              {similarItems && similarItems.length > 0 && (
+                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
+                  <div className="flex items-start gap-2 mb-2">
+                    <AlertCircle className="w-4 h-4 text-yellow-500 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-yellow-500 mb-1">Similar items found:</p>
+                      <ul className="text-xs text-yellow-400 space-y-1">
+                        {similarItems.map((item) => (
+                          <li key={item.id}>• {item.name}{item.url ? ` (${item.url})` : ''}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Icon & Color */}
               <div className="grid grid-cols-2 gap-4">

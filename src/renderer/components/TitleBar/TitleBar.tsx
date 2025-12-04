@@ -15,6 +15,8 @@ import {
   CloudOff,
   AlertCircle,
   CheckSquare,
+  Undo2,
+  Sparkles,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import type { NetworkProfile } from '@shared/types';
@@ -49,6 +51,9 @@ export function TitleBar() {
     settings,
     isSelectionMode,
     toggleSelectionMode,
+    lastBackupTime,
+    canUndo,
+    undoLastChange,
   } = useStore();
   
   // Count health status
@@ -86,14 +91,20 @@ export function TitleBar() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-500" />
           <input
             type="text"
-            placeholder="Search bookmarks, apps, connections..."
+            placeholder={settings?.aiEnabled ? "Search with AI (type 3+ chars)..." : "Search bookmarks, apps, connections..."}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-1.5 text-sm rounded-lg bg-dark-800 border border-dark-700 
+            className={`w-full pl-10 ${settings?.aiEnabled && searchQuery.length >= 3 ? 'pr-16' : 'pr-4'} py-1.5 text-sm rounded-lg bg-dark-800 border border-dark-700 
                      text-dark-100 placeholder:text-dark-500
                      focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary/30
-                     transition-all duration-200"
+                     transition-all duration-200`}
           />
+          {settings?.aiEnabled && searchQuery.length >= 3 && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-accent-primary/70">
+              <Sparkles className="w-3 h-3" />
+              <span>AI</span>
+            </div>
+          )}
         </div>
       </div>
 

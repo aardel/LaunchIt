@@ -1,6 +1,6 @@
 # Launchpad 🚀
 
-A powerful, modern launcher for bookmarks, SSH connections, apps, and passwords with network profile support (Tailscale, VPN, Local). Built with Electron, React, and TypeScript.
+A powerful, modern launcher for bookmarks, SSH connections, apps, and passwords with network profile support (Tailscale, VPN, Local). Features AI-powered categorization, semantic search, automatic backups, browser extensions, and more. Built with Electron, React, and TypeScript.
 
 ![Launchpad Screenshot](assets/screenshot.png)
 
@@ -31,6 +31,8 @@ Switch between different network contexts seamlessly:
 - **Port Preservation** - Maintains port numbers across network profiles
 - **Health Check** - Monitor bookmark availability and response times
 - **Favicon Support** - Automatic favicon fetching and caching
+- **Automatic Backup** - Auto-backup before major changes (delete, update, batch operations)
+- **Undo Functionality** - One-click undo to restore previous state
 
 ### 🌐 Browser Integration
 - **Browser Extensions** - Quick-add bookmarks from Chrome, Firefox, Edge, Brave, Arc, and Safari
@@ -41,6 +43,8 @@ Switch between different network contexts seamlessly:
 - **WebDAV/Nextcloud Sync** - Sync your data across devices
 - **Import/Export** - Backup and restore your data
 - **Encrypted Sync** - End-to-end encrypted synchronization
+- **Automatic Backups** - Auto-backup before major changes (keeps last 10 backups)
+- **One-Click Undo** - Restore from most recent backup with undo button
 
 ### 🎨 Modern Dashboard UI
 - **Card View** - Beautiful card-based layout
@@ -52,8 +56,16 @@ Switch between different network contexts seamlessly:
 - **Collapsible Groups** - Expand/collapse groups in sidebar
 - **Selection Mode** - Multi-select items for batch operations
 
+### 🤖 AI-Powered Features (Groq Integration)
+- **Smart Categorization** - AI suggests the best group for new items
+- **Auto-Description Generation** - AI creates helpful descriptions for bookmarks
+- **Smart Tagging** - AI suggests relevant tags based on content
+- **Duplicate Detection** - Automatically finds similar items before creating
+- **Semantic Search** - Search by meaning, not just keywords (3+ characters)
+- **Free Tier** - 14,400 requests/day via Groq's free API
+
 ### 🔍 Advanced Features
-- **Tags System** - Tag items for flexible organization
+- **Tags System** - Tag items for flexible organization with AI suggestions
 - **Access Tracking** - Track when and how often items are accessed
 - **Custom Icons** - Use emojis or custom icons for groups and items
 - **Batch Operations** - Delete, move, or edit multiple items at once

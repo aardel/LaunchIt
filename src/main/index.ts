@@ -11,6 +11,8 @@ import { FaviconService } from './services/favicon';
 import { HealthCheckService, HealthCheckResult } from './services/healthCheck';
 import { SyncService } from './services/sync';
 import { ExtensionServer } from './services/extensionServer';
+import { AIService } from './services/aiService';
+import { BackupService } from './services/backupService';
 import {
   AnyItem,
   Group,
@@ -35,6 +37,8 @@ let faviconService: FaviconService;
 let healthCheckService: HealthCheckService;
 let syncService: SyncService;
 let extensionServer: ExtensionServer;
+let aiService: AIService;
+let backupService: BackupService;
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
@@ -103,6 +107,14 @@ async function initializeServices() {
   healthCheckService = new HealthCheckService();
   syncService = new SyncService(encryption);
   extensionServer = new ExtensionServer(db);
+  backupService = new BackupService();
+  
+  // Initialize AI service
+  const settings = db.getSettings();
+  aiService = new AIService({
+    apiKey: settings.groqApiKey,
+    enabled: settings.aiEnabled || false,
+  });
   
   // Set callback for when bookmarks are added via extension
   extensionServer.setOnBookmarkAdded((item) => {
@@ -160,8 +172,21 @@ function setupIPC() {
 
   ipcMain.handle('items:update', async (_, input: UpdateItemInput): Promise<IPCResponse<AnyItem>> => {
     try {
+      // Create backup before update
+      if (backupService) {
+        const groups = getDb().getAllGroups();
+        const items = getDb().getAllItems();
+        await backupService.createBackup(groups, items);
+      }
+      
       const item = getDb().updateItem(input);
       triggerSync();
+      
+      // Notify renderer that backup was created
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('backup:created', { timestamp: new Date().toISOString() });
+      }
+      
       return { success: true, data: item };
     } catch (error) {
       return { success: false, error: String(error) };
@@ -170,8 +195,21 @@ function setupIPC() {
 
   ipcMain.handle('items:delete', async (_, id: string): Promise<IPCResponse<void>> => {
     try {
+      // Create backup before delete
+      if (backupService) {
+        const groups = getDb().getAllGroups();
+        const items = getDb().getAllItems();
+        await backupService.createBackup(groups, items);
+      }
+      
       getDb().deleteItem(id);
       triggerSync();
+      
+      // Notify renderer that backup was created
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('backup:created', { timestamp: new Date().toISOString() });
+      }
+      
       return { success: true };
     } catch (error) {
       return { success: false, error: String(error) };
@@ -180,8 +218,21 @@ function setupIPC() {
 
   ipcMain.handle('items:batchDelete', async (_, ids: string[]): Promise<IPCResponse<void>> => {
     try {
+      // Create backup before batch delete
+      if (backupService) {
+        const groups = getDb().getAllGroups();
+        const items = getDb().getAllItems();
+        await backupService.createBackup(groups, items);
+      }
+      
       getDb().batchDeleteItems(ids);
       triggerSync();
+      
+      // Notify renderer that backup was created
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('backup:created', { timestamp: new Date().toISOString() });
+      }
+      
       return { success: true };
     } catch (error) {
       return { success: false, error: String(error) };
@@ -340,7 +391,214 @@ function setupIPC() {
   ipcMain.handle('settings:update', async (_, settings: Partial<AppSettings>): Promise<IPCResponse<AppSettings>> => {
     try {
       const updated = getDb().updateSettings(settings);
+      
+      // Update AI service if API key changed
+      if (settings.groqApiKey !== undefined) {
+        aiService.setApiKey(settings.groqApiKey);
+      }
+      
       return { success: true, data: updated };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // ===== AI Features =====
+  ipcMain.handle('ai:testConnection', async (): Promise<IPCResponse<{ success: boolean; error?: string }>> => {
+    try {
+      const result = await aiService.testConnection();
+      return { success: true, data: result };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  ipcMain.handle('ai:categorizeItem', async (_, name: string, url?: string, description?: string): Promise<IPCResponse<string | null>> => {
+    try {
+      const category = await aiService.categorizeItem(name, url, description);
+      return { success: true, data: category };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  ipcMain.handle('ai:generateDescription', async (_, name: string, url?: string): Promise<IPCResponse<string | null>> => {
+    try {
+      const description = await aiService.generateDescription(name, url);
+      return { success: true, data: description };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  ipcMain.handle('ai:suggestTags', async (_, name: string, url?: string, description?: string): Promise<IPCResponse<string[] | null>> => {
+    try {
+      const tags = await aiService.suggestTags(name, url, description);
+      return { success: true, data: tags };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  ipcMain.handle('ai:findSimilarItems', async (_, name: string, url: string | undefined, existingItems: Array<{ name: string; url?: string; id: string }>): Promise<IPCResponse<Array<{ id: string; name: string; url?: string; similarity: string }> | null>> => {
+    try {
+      const similar = await aiService.findSimilarItems(name, url, existingItems);
+      return { success: true, data: similar };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  ipcMain.handle('ai:semanticSearch', async (_, query: string, items: Array<{ name: string; description?: string; url?: string; id: string }>): Promise<IPCResponse<Array<{ id: string; name: string; description?: string; url?: string; relevance: string }> | null>> => {
+    try {
+      const results = await aiService.semanticSearch(query, items);
+      return { success: true, data: results };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // ===== Backup & Undo =====
+  ipcMain.handle('backup:getLatest', async (): Promise<IPCResponse<{ timestamp: string } | null>> => {
+    try {
+      if (!backupService) {
+        return { success: true, data: null };
+      }
+      const backup = backupService.getLatestBackup();
+      if (backup) {
+        return { success: true, data: { timestamp: backup.timestamp } };
+      }
+      return { success: true, data: null };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  ipcMain.handle('backup:undo', async (): Promise<IPCResponse<{ groupsCount: number; itemsCount: number }>> => {
+    try {
+      if (!backupService) {
+        return { success: false, error: 'Backup service not initialized' };
+      }
+      const backup = backupService.getLatestBackup();
+      if (!backup) {
+        return { success: false, error: 'No backup available to restore' };
+      }
+
+      const database = getDb();
+      
+      // Clear existing data
+      const allItems = database.getAllItems();
+      const allGroups = database.getAllGroups();
+      
+      // Delete all items
+      for (const item of allItems) {
+        database.deleteItem(item.id);
+      }
+      
+      // Delete all groups
+      for (const group of allGroups) {
+        database.deleteGroup(group.id);
+      }
+      
+      // Restore from backup
+      for (const group of backup.groups) {
+        database.createGroup({
+          name: group.name,
+          icon: group.icon,
+          color: group.color,
+          defaultProfile: group.defaultProfile,
+          batchOpenDelay: group.batchOpenDelay,
+        });
+      }
+      
+      // Restore items (need to get groups first to map IDs)
+      const restoredGroups = database.getAllGroups();
+      for (const item of backup.items) {
+        // Find matching group by name (since IDs might have changed)
+        const matchingGroup = restoredGroups.find(g => g.name === backup.groups.find(bg => bg.id === item.groupId)?.name);
+        if (matchingGroup) {
+          try {
+            if (item.type === 'bookmark') {
+              const bookmark = item as any;
+              database.createItem({
+                type: 'bookmark',
+                name: bookmark.name,
+                description: bookmark.description,
+                groupId: matchingGroup.id,
+                protocol: bookmark.protocol,
+                port: bookmark.port,
+                path: bookmark.path,
+                networkAddresses: bookmark.networkAddresses,
+                icon: bookmark.icon,
+                color: bookmark.color,
+                tags: bookmark.tags || [],
+              });
+            } else if (item.type === 'ssh') {
+              const ssh = item as any;
+              database.createItem({
+                type: 'ssh',
+                name: ssh.name,
+                description: ssh.description,
+                groupId: matchingGroup.id,
+                username: ssh.username,
+                port: ssh.port,
+                networkAddresses: ssh.networkAddresses,
+                icon: ssh.icon,
+                color: ssh.color,
+                tags: ssh.tags || [],
+              });
+            } else if (item.type === 'app') {
+              const app = item as any;
+              database.createItem({
+                type: 'app',
+                name: app.name,
+                description: app.description,
+                groupId: matchingGroup.id,
+                appPath: app.appPath,
+                arguments: app.arguments,
+                icon: app.icon,
+                color: app.color,
+                tags: app.tags || [],
+              });
+            } else if (item.type === 'password') {
+              const password = item as any;
+              database.createItem({
+                type: 'password',
+                name: password.name,
+                description: password.description,
+                groupId: matchingGroup.id,
+                service: password.service,
+                username: password.username,
+                url: password.url,
+                icon: password.icon,
+                color: password.color,
+                tags: password.tags || [],
+              });
+            }
+          } catch (error) {
+            console.error(`Failed to restore item ${item.name}:`, error);
+          }
+        }
+      }
+      
+      triggerSync();
+      
+      // Notify renderer
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('backup:restored', { 
+          timestamp: backup.timestamp,
+          groupsCount: backup.groups.length,
+          itemsCount: backup.items.length,
+        });
+      }
+      
+      return { 
+        success: true, 
+        data: { 
+          groupsCount: backup.groups.length, 
+          itemsCount: backup.items.length 
+        } 
+      };
     } catch (error) {
       return { success: false, error: String(error) };
     }

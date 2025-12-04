@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { 
   X, RefreshCw, Download, Upload, FileUp, Check, Globe,
   Settings, Wifi, Database, Info, Terminal, Palette, Image, Loader2, Shield,
-  Lock, Eye, EyeOff, AlertCircle, Keyboard, Command, Cloud, CloudOff, CheckCircle2
+  Lock, Eye, EyeOff, AlertCircle, Keyboard, Command, Cloud, CloudOff, CheckCircle2,
+  Sparkles, Key
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { ImportBrowserModal } from './ImportBrowserModal';
 import type { NetworkProfile } from '@shared/types';
 
-type SettingsTab = 'general' | 'security' | 'network' | 'terminal' | 'shortcuts' | 'data' | 'about';
+type SettingsTab = 'general' | 'security' | 'network' | 'terminal' | 'shortcuts' | 'data' | 'ai' | 'about';
 
 const TABS: { id: SettingsTab; label: string; icon: typeof Settings }[] = [
   { id: 'general', label: 'General', icon: Palette },
@@ -17,6 +18,7 @@ const TABS: { id: SettingsTab; label: string; icon: typeof Settings }[] = [
   { id: 'terminal', label: 'Terminal', icon: Terminal },
   { id: 'shortcuts', label: 'Shortcuts', icon: Keyboard },
   { id: 'data', label: 'Data', icon: Database },
+  { id: 'ai', label: 'AI Features', icon: Sparkles },
   { id: 'about', label: 'About', icon: Info },
 ];
 
@@ -74,6 +76,13 @@ export function SettingsModal() {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  
+  // AI state
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [groqApiKey, setGroqApiKey] = useState('');
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [isTestingAiConnection, setIsTestingAiConnection] = useState(false);
+  const [aiConnectionStatus, setAiConnectionStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (settings) {
@@ -86,6 +95,9 @@ export function SettingsModal() {
       setDisplayPassword(''); // Reset display password
       setShowSyncPassword(false); // Reset show/hide state
       // Don't load password value, but show indicator if one exists
+      setAiEnabled(settings.aiEnabled || false);
+      setGroqApiKey(settings.groqApiKey || '');
+      setShowApiKey(false);
     }
     if (groups.length > 0 && !selectedImportGroup) {
       setSelectedImportGroup(groups[0].id);
@@ -872,6 +884,169 @@ export function SettingsModal() {
                       Import from HTML file
                     </button>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* AI Features Tab */}
+            {activeTab === 'ai' && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-medium text-dark-100 mb-2">AI Features with Groq</h3>
+                  <p className="text-sm text-dark-400 mb-4">
+                    Enable AI-powered features like smart categorization, auto-tagging, and semantic search.
+                    Groq offers 14,400 free requests per day.
+                  </p>
+                </div>
+
+                {/* Enable AI */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-sm font-medium text-dark-200">Enable AI Features</label>
+                      <p className="text-xs text-dark-500">Turn on AI-powered suggestions and search</p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        const newValue = !aiEnabled;
+                        setAiEnabled(newValue);
+                        await updateSettings({ aiEnabled: newValue });
+                      }}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        aiEnabled ? 'bg-accent-primary' : 'bg-dark-700'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          aiEnabled ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                {/* API Key */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-dark-200">Groq API Key</label>
+                  <div className="relative">
+                    <input
+                      type={showApiKey ? 'text' : 'password'}
+                      value={groqApiKey}
+                      onChange={(e) => setGroqApiKey(e.target.value)}
+                      onBlur={async () => {
+                        if (groqApiKey !== settings?.groqApiKey) {
+                          await updateSettings({ groqApiKey });
+                        }
+                      }}
+                      placeholder="gsk_..."
+                      className="input-base pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-400 hover:text-dark-200"
+                    >
+                      {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-dark-500">
+                    Get your free API key from{' '}
+                    <a
+                      href="https://console.groq.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-accent-primary hover:underline"
+                    >
+                      console.groq.com
+                    </a>
+                  </p>
+                </div>
+
+                {/* Test Connection */}
+                <div className="space-y-2">
+                  <button
+                    onClick={async () => {
+                      setIsTestingAiConnection(true);
+                      setAiConnectionStatus(null);
+                      
+                      // Save API key first
+                      if (groqApiKey) {
+                        await updateSettings({ groqApiKey, aiEnabled: true });
+                      }
+                      
+                      const res = await window.api.ai.testConnection();
+                      if (res.success && res.data?.success) {
+                        setAiConnectionStatus('success');
+                      } else {
+                        setAiConnectionStatus('error');
+                      }
+                      setIsTestingAiConnection(false);
+                    }}
+                    disabled={!groqApiKey || isTestingAiConnection}
+                    className="btn-secondary w-full"
+                  >
+                    {isTestingAiConnection ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Testing...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" />
+                        Test Connection
+                      </>
+                    )}
+                  </button>
+                  
+                  {aiConnectionStatus === 'success' && (
+                    <p className="text-xs text-green-500 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Connection successful! AI features are ready.
+                    </p>
+                  )}
+                  {aiConnectionStatus === 'error' && (
+                    <p className="text-xs text-red-500 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      Connection failed. Please check your API key.
+                    </p>
+                  )}
+                </div>
+
+                {/* Features List */}
+                <div className="pt-4 border-t border-dark-800">
+                  <h4 className="text-sm font-medium text-dark-200 mb-3">Available Features</h4>
+                  <div className="space-y-2 text-sm text-dark-400">
+                    <div className="flex items-start gap-2">
+                      <Check className="w-4 h-4 text-accent-primary mt-0.5 flex-shrink-0" />
+                      <span>Smart categorization - AI suggests groups for new items</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Check className="w-4 h-4 text-accent-primary mt-0.5 flex-shrink-0" />
+                      <span>Auto-description generation - Create descriptions automatically</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Check className="w-4 h-4 text-accent-primary mt-0.5 flex-shrink-0" />
+                      <span>Smart tagging - AI suggests relevant tags</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Check className="w-4 h-4 text-accent-primary mt-0.5 flex-shrink-0" />
+                      <span>Duplicate detection - Find similar items before creating</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Check className="w-4 h-4 text-accent-primary mt-0.5 flex-shrink-0" />
+                      <span>Semantic search - Search by meaning, not just keywords</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Info */}
+                <div className="bg-dark-800/50 rounded-lg p-3 text-xs text-dark-400">
+                  <p className="mb-1">
+                    <strong className="text-dark-300">Free Tier:</strong> 14,400 requests/day
+                  </p>
+                  <p>
+                    Your API key is stored securely and encrypted. All AI processing happens via Groq's API.
+                  </p>
                 </div>
               </div>
             )}

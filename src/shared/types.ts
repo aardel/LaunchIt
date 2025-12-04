@@ -124,6 +124,9 @@ export interface AppSettings {
   showInMenuBar: boolean;
   launchAtStartup: boolean;
   cardViewMode: 'normal' | 'compact' | 'list'; // Card display mode
+  // AI Features
+  aiEnabled: boolean;
+  groqApiKey?: string; // Encrypted
   // Encryption
   encryptionSalt?: string;
   encryptionVerification?: string;

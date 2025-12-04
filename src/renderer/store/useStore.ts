@@ -46,6 +46,10 @@ interface AppState {
   lastSyncTime: string | null;
   syncError: string | null;
 
+  // Backup Status
+  lastBackupTime: string | null;
+  canUndo: boolean;
+
   // Selection state
   selectedItemIds: Set<string>;
   isSelectionMode: boolean;
@@ -74,6 +78,10 @@ interface AppState {
   updateItem: (input: UpdateItemInput) => Promise<void>;
   deleteItem: (id: string) => Promise<void>;
   reorderItems: (items: { id: string; sortOrder: number }[]) => Promise<void>;
+
+  // Backup actions
+  checkBackup: () => Promise<void>;
+  undoLastChange: () => Promise<void>;
   launchItem: (item: AnyItem) => Promise<void>;
   launchGroup: (groupId: string) => Promise<void>;
 
@@ -152,6 +160,10 @@ export const useStore = create<AppState>((set, get) => ({
   isSyncing: false,
   lastSyncTime: null,
   syncError: null,
+
+  // Backup Status
+  lastBackupTime: null,
+  canUndo: false,
 
   // Selection state
   selectedItemIds: new Set<string>(),
@@ -248,6 +260,8 @@ export const useStore = create<AppState>((set, get) => ({
             item.id === input.id ? res.data! : item
           ),
         }));
+        // Check for backup after update
+        await get().checkBackup();
       }
     } catch (error) {
       set({ error: String(error) });
@@ -701,6 +715,8 @@ export const useStore = create<AppState>((set, get) => ({
           return { items: newItems };
         });
         get().clearSelection();
+        // Check for backup after batch delete
+        await get().checkBackup();
         // Reload data to ensure UI is in sync
         await get().loadData();
       } else {
@@ -719,8 +735,45 @@ export const useStore = create<AppState>((set, get) => ({
       }
     }
     get().clearSelection();
+    // Check for backup after batch change
+    await get().checkBackup();
     // Reload data to ensure UI is in sync
     await get().loadData();
+  },
+
+  // Backup actions
+  checkBackup: async () => {
+    try {
+      const res = await window.api.backup.getLatest();
+      if (res.success && res.data) {
+        set({ 
+          lastBackupTime: res.data.timestamp,
+          canUndo: true,
+        });
+      } else {
+        set({ canUndo: false });
+      }
+    } catch (error) {
+      console.error('Failed to check backup:', error);
+    }
+  },
+
+  undoLastChange: async () => {
+    try {
+      const res = await window.api.backup.undo();
+      if (res.success) {
+        // Reload all data after undo
+        await get().loadData();
+        set({ 
+          lastBackupTime: null,
+          canUndo: false,
+        });
+      } else {
+        set({ error: res.error || 'Failed to undo' });
+      }
+    } catch (error) {
+      set({ error: String(error) });
+    }
   },
 
   // Modal actions

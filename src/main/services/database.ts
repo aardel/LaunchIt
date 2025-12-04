@@ -174,6 +174,8 @@ export class DatabaseService {
         showInMenuBar: false,
         launchAtStartup: false,
         cardViewMode: 'normal',
+        aiEnabled: false,
+        groqApiKey: undefined,
       };
 
       for (const [key, value] of Object.entries(defaultSettings)) {

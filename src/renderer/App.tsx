@@ -68,6 +68,35 @@ function App() {
     }
   }, [reloadData]);
 
+  // Listen for backup created events
+  useEffect(() => {
+    const handleBackupCreated = (_event: any, data: { timestamp: string }) => {
+      useStore.setState({ 
+        lastBackupTime: data.timestamp,
+        canUndo: true,
+      });
+    };
+
+    const handleBackupRestored = (_event: any, data: { timestamp: string; groupsCount: number; itemsCount: number }) => {
+      useStore.setState({ 
+        lastBackupTime: null,
+        canUndo: false,
+      });
+      // Reload data after restore
+      reloadData();
+    };
+
+    // @ts-ignore - window.electron is available in Electron context
+    if (window.electron?.ipcRenderer) {
+      window.electron.ipcRenderer.on('backup:created', handleBackupCreated);
+      window.electron.ipcRenderer.on('backup:restored', handleBackupRestored);
+      return () => {
+        window.electron.ipcRenderer.removeListener('backup:created', handleBackupCreated);
+        window.electron.ipcRenderer.removeListener('backup:restored', handleBackupRestored);
+      };
+    }
+  }, [reloadData]);
+
   // Fetch missing favicons when items first load (deferred to not block UI)
   useEffect(() => {
     if (items.length > 0) {

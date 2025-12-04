@@ -1,9 +1,9 @@
-import { useMemo } from 'react';
-import { Plus, Play, LayoutGrid, Grid3x3, List } from 'lucide-react';
+import { useMemo, useState, useEffect } from 'react';
+import { Plus, Play, LayoutGrid, Grid3x3, List, Sparkles, Loader2 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { SortableGroupSection } from './SortableGroupSection';
 import { BatchOperationsBar } from './BatchOperationsBar';
-import type { Group } from '@shared/types';
+import type { Group, AnyItem } from '@shared/types';
 
 export function Dashboard() {
   const {
@@ -17,6 +17,11 @@ export function Dashboard() {
   } = useStore();
 
   const cardViewMode = settings?.cardViewMode || 'normal';
+  
+  // Semantic search state
+  const [semanticResults, setSemanticResults] = useState<Set<string>>(new Set());
+  const [isSemanticSearching, setIsSemanticSearching] = useState(false);
+  const [useSemanticSearch, setUseSemanticSearch] = useState(false);
 
   const toggleViewMode = async () => {
     // Cycle through: normal -> compact -> list -> normal
@@ -52,6 +57,47 @@ export function Dashboard() {
     }
   };
 
+  // Semantic search effect (debounced)
+  useEffect(() => {
+    if (!searchQuery || !settings?.aiEnabled || searchQuery.length < 3) {
+      setSemanticResults(new Set());
+      setUseSemanticSearch(false);
+      setIsSemanticSearching(false);
+      return;
+    }
+
+    // Debounce semantic search
+    const timeoutId = setTimeout(async () => {
+      setIsSemanticSearching(true);
+      try {
+        const itemsForSearch = items.map(item => ({
+          id: item.id,
+          name: item.name,
+          description: item.description,
+          url: item.type === 'bookmark' 
+            ? `${(item as any).protocol}://${(item as any).networkAddresses?.local || ''}${(item as any).port ? `:${(item as any).port}` : ''}${(item as any).path || ''}`
+            : undefined,
+        }));
+
+        const res = await window.api.ai.semanticSearch(searchQuery, itemsForSearch);
+        if (res.success && res.data) {
+          const resultIds = new Set(res.data.map(r => r.id));
+          setSemanticResults(resultIds);
+          setUseSemanticSearch(true);
+        } else {
+          setUseSemanticSearch(false);
+        }
+      } catch (error) {
+        console.error('Semantic search failed:', error);
+        setUseSemanticSearch(false);
+      } finally {
+        setIsSemanticSearching(false);
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, items, settings?.aiEnabled]);
+
   // Filter and group items
   const { displayGroups, filteredItems } = useMemo(() => {
     let filtered = items;
@@ -59,12 +105,19 @@ export function Dashboard() {
     // Filter by search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      filtered = items.filter(
-        (item) =>
-          item.name.toLowerCase().includes(query) ||
-          item.description?.toLowerCase().includes(query) ||
-          item.tags.some((tag) => tag.toLowerCase().includes(query))
-      );
+      
+      // Use semantic search results if available
+      if (useSemanticSearch && semanticResults.size > 0) {
+        filtered = items.filter(item => semanticResults.has(item.id));
+      } else {
+        // Fall back to regular text search
+        filtered = items.filter(
+          (item) =>
+            item.name.toLowerCase().includes(query) ||
+            item.description?.toLowerCase().includes(query) ||
+            item.tags.some((tag) => tag.toLowerCase().includes(query))
+        );
+      }
     }
 
     // Filter by selected group
@@ -85,7 +138,7 @@ export function Dashboard() {
     const displayGroups = groups.filter((group) => groupedItems[group.id]?.length > 0);
 
     return { displayGroups, filteredItems: groupedItems };
-  }, [items, groups, selectedGroupId, searchQuery]);
+  }, [items, groups, selectedGroupId, searchQuery, semanticResults, useSemanticSearch]);
 
   const selectedGroup = selectedGroupId
     ? groups.find((g) => g.id === selectedGroupId)
@@ -106,12 +159,31 @@ export function Dashboard() {
             <h1 className="text-2xl font-bold text-dark-100">
               {selectedGroup ? selectedGroup.name : 'All Items'}
             </h1>
-            <p className="text-dark-400 mt-1">
-              {searchQuery
-                ? `Search results for "${searchQuery}"`
-                : selectedGroup
-                ? `${filteredItems[selectedGroup.id]?.length || 0} items`
-                : `${items.length} items across ${groups.length} groups`}
+            <p className="text-dark-400 mt-1 flex items-center gap-2">
+              {searchQuery ? (
+                <>
+                  <span>Search results for "{searchQuery}"</span>
+                  {settings?.aiEnabled && searchQuery.length >= 3 && (
+                    <span className="flex items-center gap-1 text-xs text-accent-primary">
+                      {isSemanticSearching ? (
+                        <>
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          AI searching...
+                        </>
+                      ) : useSemanticSearch ? (
+                        <>
+                          <Sparkles className="w-3 h-3" />
+                          AI search
+                        </>
+                      ) : null}
+                    </span>
+                  )}
+                </>
+              ) : selectedGroup ? (
+                `${filteredItems[selectedGroup.id]?.length || 0} items`
+              ) : (
+                `${items.length} items across ${groups.length} groups`
+              )}
             </p>
           </div>
 

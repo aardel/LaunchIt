@@ -169,6 +169,30 @@ const api = {
     download: (): Promise<IPCResponse<{ groups: Group[]; items: AnyItem[] } | null>> =>
       ipcRenderer.invoke('sync:download'),
   },
+
+  // AI Features
+  ai: {
+    testConnection: (): Promise<IPCResponse<{ success: boolean; error?: string }>> =>
+      ipcRenderer.invoke('ai:testConnection'),
+    categorizeItem: (name: string, url?: string, description?: string): Promise<IPCResponse<string | null>> =>
+      ipcRenderer.invoke('ai:categorizeItem', name, url, description),
+    generateDescription: (name: string, url?: string): Promise<IPCResponse<string | null>> =>
+      ipcRenderer.invoke('ai:generateDescription', name, url),
+    suggestTags: (name: string, url?: string, description?: string): Promise<IPCResponse<string[] | null>> =>
+      ipcRenderer.invoke('ai:suggestTags', name, url, description),
+    findSimilarItems: (name: string, url: string | undefined, existingItems: Array<{ name: string; url?: string; id: string }>): Promise<IPCResponse<Array<{ id: string; name: string; url?: string; similarity: string }> | null>> =>
+      ipcRenderer.invoke('ai:findSimilarItems', name, url, existingItems),
+    semanticSearch: (query: string, items: Array<{ name: string; description?: string; url?: string; id: string }>): Promise<IPCResponse<Array<{ id: string; name: string; description?: string; url?: string; relevance: string }> | null>> =>
+      ipcRenderer.invoke('ai:semanticSearch', query, items),
+  },
+
+  // Backup & Undo
+  backup: {
+    getLatest: (): Promise<IPCResponse<{ timestamp: string } | null>> =>
+      ipcRenderer.invoke('backup:getLatest'),
+    undo: (): Promise<IPCResponse<{ groupsCount: number; itemsCount: number }>> =>
+      ipcRenderer.invoke('backup:undo'),
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);
