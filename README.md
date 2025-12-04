@@ -163,6 +163,53 @@ Access your recently used items in the sidebar. The Recent Items section shows:
 - Quick launch with one click
 - Collapsible to save space
 
+### AI Features
+
+Launchpad includes AI-powered features using Groq's free API (14,400 requests/day):
+
+1. **Enable AI:**
+   - Go to Settings → AI Features
+   - Enter your Groq API key (get one free at https://console.groq.com)
+   - Toggle "Enable AI Features" ON
+   - Test connection
+
+2. **Smart Categorization:**
+   - When creating items, click "AI Suggest" next to Group field
+   - AI automatically selects the best group
+
+3. **Auto-Description:**
+   - For bookmarks, click "AI Generate" next to Description
+   - AI creates helpful descriptions automatically
+
+4. **Smart Tagging:**
+   - Click "AI Suggest" next to Tags field
+   - AI suggests 3-5 relevant tags
+
+5. **Semantic Search:**
+   - Type 3+ characters in search bar
+   - AI finds items by meaning, not just keywords
+   - Shows "AI search" indicator when active
+
+6. **Duplicate Detection:**
+   - Automatically detects similar items as you type
+   - Shows warning with similar items found
+
+See `AI_USAGE_GUIDE.md` for detailed instructions.
+
+### Automatic Backup & Undo
+
+Launchpad automatically creates backups before major changes:
+- **Automatic Backups:** Created before delete, update, or batch operations
+- **Undo Button:** Appears in title bar when backup is available
+- **One-Click Restore:** Click undo to restore previous state
+- **Smart Cleanup:** Keeps last 10 backups automatically
+
+**How to use:**
+1. Make changes (delete, update items)
+2. Undo button appears in title bar
+3. Click "Undo" to restore previous state
+4. Confirmation dialog prevents accidental restores
+
 ### Batch Operations
 
 1. Click the selection icon in the title bar
