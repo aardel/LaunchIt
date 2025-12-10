@@ -196,12 +196,18 @@ Similar item numbers (or "none"):`;
       .map((item, idx) => `${idx + 1}. ${item.name}${item.description ? ` - ${item.description}` : ''}${item.url ? ` (${item.url})` : ''}`)
       .join('\n');
 
-    const prompt = `Find items relevant to this search query. Return only the numbers (comma-separated) of relevant items, ordered by relevance.
+    const prompt = `Find items that are DIRECTLY related to this search query. Be strict - only include items that are clearly relevant. Return only the numbers (comma-separated) of relevant items, ordered by relevance.
 
 Search query: "${query}"
 
 Items:
 ${itemsList}
+
+Instructions:
+- Only include items that are directly related to the search query
+- Prefer exact matches in name, description, or URL
+- Exclude items that are only loosely related
+- Return at most 10 most relevant items
 
 Relevant item numbers (comma-separated, most relevant first):`;
 

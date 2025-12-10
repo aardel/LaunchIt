@@ -3,7 +3,7 @@ import { Plus, Play, LayoutGrid, Grid3x3, List, Sparkles, Loader2 } from 'lucide
 import { useStore } from '../../store/useStore';
 import { SortableGroupSection } from './SortableGroupSection';
 import { BatchOperationsBar } from './BatchOperationsBar';
-import type { Group, AnyItem } from '@shared/types';
+import type { Group, AnyItem, BookmarkItem, SSHItem, AppItem, PasswordItem } from '@shared/types';
 
 export function Dashboard() {
   const {
@@ -57,9 +57,78 @@ export function Dashboard() {
     }
   };
 
+  // Helper function to extract all searchable text from an item
+  const getSearchableText = (item: AnyItem): string => {
+    const parts: string[] = [
+      item.name,
+      item.description || '',
+      ...item.tags,
+    ];
+
+    // Add type-specific fields
+    if (item.type === 'bookmark') {
+      const bookmark = item as BookmarkItem;
+      parts.push(bookmark.protocol || '');
+      parts.push(bookmark.path || '');
+      // Add all network addresses
+      if (bookmark.networkAddresses) {
+        parts.push(
+          bookmark.networkAddresses.local || '',
+          bookmark.networkAddresses.tailscale || '',
+          bookmark.networkAddresses.vpn || '',
+          bookmark.networkAddresses.custom || ''
+        );
+        // Also add full URLs for each address
+        const addresses = [
+          bookmark.networkAddresses.local,
+          bookmark.networkAddresses.tailscale,
+          bookmark.networkAddresses.vpn,
+          bookmark.networkAddresses.custom
+        ].filter(Boolean);
+        
+        addresses.forEach(address => {
+          const port = bookmark.port ? `:${bookmark.port}` : '';
+          const path = bookmark.path || '';
+          parts.push(`${bookmark.protocol}://${address}${port}${path}`);
+          parts.push(`${address}${port}${path}`);
+          parts.push(address);
+        });
+      }
+    } else if (item.type === 'ssh') {
+      const ssh = item as SSHItem;
+      parts.push(ssh.username || '');
+      // Add all network addresses
+      if (ssh.networkAddresses) {
+        parts.push(
+          ssh.networkAddresses.local || '',
+          ssh.networkAddresses.tailscale || '',
+          ssh.networkAddresses.vpn || '',
+          ssh.networkAddresses.custom || ''
+        );
+      }
+    } else if (item.type === 'password') {
+      const password = item as PasswordItem;
+      parts.push(password.service || '');
+      parts.push(password.url || '');
+      parts.push(password.username || '');
+    } else if (item.type === 'app') {
+      const app = item as AppItem;
+      parts.push(app.appPath || '');
+      // Also add just the filename
+      if (app.appPath) {
+        const filename = app.appPath.split('/').pop() || app.appPath.split('\\').pop() || '';
+        parts.push(filename);
+      }
+    }
+
+    return parts.filter(Boolean).join(' ').toLowerCase();
+  };
+
   // Semantic search effect (debounced)
   useEffect(() => {
-    if (!searchQuery || !settings?.aiEnabled || searchQuery.length < 3) {
+    // Only use semantic search for longer queries (4+ chars) to avoid false positives
+    // Short queries are better handled by exact text matching
+    if (!searchQuery || !settings?.aiEnabled || searchQuery.length < 4) {
       setSemanticResults(new Set());
       setUseSemanticSearch(false);
       setIsSemanticSearching(false);
@@ -106,17 +175,37 @@ export function Dashboard() {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       
-      // Use semantic search results if available
+      // Always do text search for exact matches - search all fields including URLs
+      const textMatches = items.filter((item) => {
+        const searchableText = getSearchableText(item);
+        return searchableText.includes(query);
+      });
+      
+      // If semantic search is available, filter semantic results to only include
+      // items that have at least a partial text match (to reduce false positives)
       if (useSemanticSearch && semanticResults.size > 0) {
-        filtered = items.filter(item => semanticResults.has(item.id));
+        const textMatchIds = new Set(textMatches.map(item => item.id));
+        
+        const semanticMatches = items.filter(item => {
+          // Skip items that are already in text matches
+          if (textMatchIds.has(item.id)) return false;
+          
+          if (!semanticResults.has(item.id)) return false;
+          // Only include semantic matches that also have some text relevance
+          const searchableText = getSearchableText(item);
+          // Check if any word in the query appears in the item (partial match)
+          const queryWords = query.split(/\s+/).filter(w => w.length > 2);
+          if (queryWords.length === 0) return true; // Single word, allow it
+          // At least one word should match
+          return queryWords.some(word => searchableText.includes(word));
+        });
+        
+        // Combine: text matches first, then semantic matches
+        // This ensures exact matches appear before semantic matches
+        filtered = [...textMatches, ...semanticMatches];
       } else {
-        // Fall back to regular text search
-        filtered = items.filter(
-          (item) =>
-            item.name.toLowerCase().includes(query) ||
-            item.description?.toLowerCase().includes(query) ||
-            item.tags.some((tag) => tag.toLowerCase().includes(query))
-        );
+        // Use only text search if semantic search not available
+        filtered = textMatches;
       }
     }
 
@@ -152,9 +241,10 @@ export function Dashboard() {
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-accent-secondary/5 rounded-full blur-3xl" />
       </div>
 
-      <div className="p-6 max-w-[1600px] mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+      <div className="max-w-[1600px] mx-auto">
+        {/* Header - Sticky */}
+        <div className="sticky top-0 z-10 bg-dark-900/95 backdrop-blur-sm border-b border-dark-800 px-6 pt-6 pb-4 mb-4 -mx-6">
+          <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-dark-100">
               {selectedGroup ? selectedGroup.name : 'All Items'}
@@ -163,7 +253,7 @@ export function Dashboard() {
               {searchQuery ? (
                 <>
                   <span>Search results for "{searchQuery}"</span>
-                  {settings?.aiEnabled && searchQuery.length >= 3 && (
+                  {settings?.aiEnabled && searchQuery.length >= 4 && (
                     <span className="flex items-center gap-1 text-xs text-accent-primary">
                       {isSemanticSearching ? (
                         <>
@@ -209,27 +299,30 @@ export function Dashboard() {
               Add Item
             </button>
           </div>
+          </div>
         </div>
 
         {/* Content */}
-        {displayGroups.length === 0 ? (
-          <EmptyState
-            hasGroups={groups.length > 0}
-            onAddItem={openAddModal}
-          />
-        ) : (
-          <div className="space-y-10">
-            {displayGroups.map((group) => (
-              <SortableGroupSection
-                key={group.id}
-                group={group}
-                items={filteredItems[group.id] || []}
-                onLaunchAll={() => launchGroup(group.id)}
-                cardViewMode={cardViewMode}
-              />
-            ))}
-          </div>
-        )}
+        <div className="px-6 pb-6">
+          {displayGroups.length === 0 ? (
+            <EmptyState
+              hasGroups={groups.length > 0}
+              onAddItem={openAddModal}
+            />
+          ) : (
+            <div className="space-y-10">
+              {displayGroups.map((group) => (
+                <SortableGroupSection
+                  key={group.id}
+                  group={group}
+                  items={filteredItems[group.id] || []}
+                  onLaunchAll={() => launchGroup(group.id)}
+                  cardViewMode={cardViewMode}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Batch Operations Bar */}
