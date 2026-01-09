@@ -14,7 +14,7 @@ interface SyncData {
 
 export class SyncService {
   private encryption: EncryptionService;
-  private syncFile = 'launchpad-data.json';
+  private syncFile = 'launchit-data.json';
 
   constructor(encryption: EncryptionService) {
     this.encryption = encryption;
@@ -147,7 +147,7 @@ export class SyncService {
                     const errorBody = Buffer.concat(chunks).toString('utf-8');
                     const preview = errorBody.substring(0, 200).replace(/\n/g, ' ');
                     errorMsg += `: ${preview}`;
-                  } catch {}
+                  } catch { }
                 }
                 resolve({ success: false, error: errorMsg });
               });
@@ -211,7 +211,7 @@ export class SyncService {
 
         request.on('response', (response) => {
           clearTimeout(timeout);
-          
+
           if (response.statusCode === 404) {
             resolve({ success: false, error: 'No sync data found on server' });
             return;
@@ -259,7 +259,7 @@ export class SyncService {
    */
   private normalizeUrl(baseUrl: string, file?: string): string {
     let url = baseUrl.trim();
-    
+
     // Remove trailing slash
     if (url.endsWith('/')) {
       url = url.slice(0, -1);

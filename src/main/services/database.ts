@@ -29,7 +29,7 @@ export class DatabaseService {
 
   async initialize(): Promise<void> {
     const SQL = await initSqlJs();
-    
+
     // Ensure directory exists
     const dir = dirname(this.dbPath);
     if (!existsSync(dir)) {
@@ -125,7 +125,7 @@ export class DatabaseService {
 
     // Migrate: Add credentials column if it doesn't exist
     this.migrateAddCredentialsColumn();
-    
+
     // Migrate: Add service and url columns for password items
     this.migrateAddPasswordColumns();
 
@@ -140,7 +140,7 @@ export class DatabaseService {
     // Check if we have any groups
     const result = this.db!.exec('SELECT COUNT(*) as count FROM groups');
     const groupCount = result.length > 0 ? result[0].values[0][0] as number : 0;
-    
+
     if (groupCount === 0) {
       const now = new Date().toISOString();
       const defaultGroups = [
@@ -161,7 +161,7 @@ export class DatabaseService {
     // Initialize default settings if not present
     const settingsResult = this.db!.exec('SELECT COUNT(*) as count FROM settings');
     const settingsCount = settingsResult.length > 0 ? settingsResult[0].values[0][0] as number : 0;
-    
+
     if (settingsCount === 0) {
       const defaultSettings: AppSettings = {
         theme: 'dark',
@@ -176,13 +176,14 @@ export class DatabaseService {
         cardViewMode: 'normal',
         aiEnabled: false,
         groqApiKey: undefined,
+        globalSearchHotkey: process.platform === 'darwin' ? 'Option+Space' : 'Alt+Space',
       };
 
       for (const [key, value] of Object.entries(defaultSettings)) {
         this.db!.run('INSERT INTO settings (key, value) VALUES (?, ?)', [key, JSON.stringify(value)]);
       }
     }
-    
+
     this.save();
   }
 
@@ -219,11 +220,11 @@ export class DatabaseService {
   createItem(input: CreateItemInput): AnyItem {
     const id = randomUUID();
     const now = new Date().toISOString();
-    
+
     // Get next sort order for the group
     const orderResult = this.db!.exec(`SELECT MAX(sort_order) as max FROM items WHERE group_id = '${input.groupId}'`);
-    const maxOrder = orderResult.length > 0 && orderResult[0].values[0][0] !== null 
-      ? orderResult[0].values[0][0] as number 
+    const maxOrder = orderResult.length > 0 && orderResult[0].values[0][0] !== null
+      ? orderResult[0].values[0][0] as number
       : -1;
     const sortOrder = maxOrder + 1;
 
@@ -328,12 +329,12 @@ export class DatabaseService {
 
   batchDeleteItems(ids: string[]): void {
     if (ids.length === 0) return;
-    
+
     // Delete all items in a loop (more efficient than individual saves)
     for (const id of ids) {
       this.db!.run('DELETE FROM items WHERE id = ?', [id]);
     }
-    
+
     // Only save once after all deletions (this is the key optimization)
     this.save();
   }
@@ -418,10 +419,10 @@ export class DatabaseService {
   createGroup(input: CreateGroupInput): Group {
     const id = randomUUID();
     const now = new Date().toISOString();
-    
+
     const orderResult = this.db!.exec('SELECT MAX(sort_order) as max FROM groups');
-    const maxOrder = orderResult.length > 0 && orderResult[0].values[0][0] !== null 
-      ? orderResult[0].values[0][0] as number 
+    const maxOrder = orderResult.length > 0 && orderResult[0].values[0][0] !== null
+      ? orderResult[0].values[0][0] as number
       : -1;
     const sortOrder = maxOrder + 1;
 

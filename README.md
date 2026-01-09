@@ -1,8 +1,8 @@
-# Launchpad 🚀
+# LaunchIt 🚀
 
 A powerful, modern launcher for bookmarks, SSH connections, apps, and passwords with network profile support (Tailscale, VPN, Local). Features AI-powered categorization, semantic search, automatic backups, browser extensions, and more. Built with Electron, React, and TypeScript.
 
-![Launchpad Screenshot](assets/screenshot.png)
+![LaunchIt Screenshot](assets/screenshot.png)
 
 ## ✨ Features
 
@@ -82,8 +82,8 @@ Switch between different network contexts seamlessly:
 
 ```bash
 # Clone the repository
-git clone https://github.com/aardel/Launchpad.git
-cd Launchpad
+git clone https://github.com/aardel/LaunchIt.git
+cd LaunchIt
 
 # Install dependencies
 npm install
@@ -145,7 +145,7 @@ Switch profiles using the dropdown in the title bar. All items will use the corr
 **Safari:**
 See `browser-extension-safari/README.md` for installation instructions.
 
-Once installed, click the extension icon while browsing to quickly add bookmarks to Launchpad.
+Once installed, click the extension icon while browsing to quickly add bookmarks to LaunchIt.
 
 ### Importing Bookmarks
 
@@ -165,7 +165,7 @@ Access your recently used items in the sidebar. The Recent Items section shows:
 
 ### AI Features
 
-Launchpad includes AI-powered features using Groq's free API (14,400 requests/day):
+LaunchIt includes AI-powered features using Groq's free API (14,400 requests/day):
 
 1. **Enable AI:**
    - Go to Settings → AI Features
@@ -198,7 +198,7 @@ See `AI_USAGE_GUIDE.md` for detailed instructions.
 
 ### Automatic Backup & Undo
 
-Launchpad automatically creates backups before major changes:
+LaunchIt automatically creates backups before major changes:
 - **Automatic Backups:** Created before delete, update, or batch operations
 - **Undo Button:** Appears in title bar when backup is available
 - **One-Click Restore:** Click undo to restore previous state

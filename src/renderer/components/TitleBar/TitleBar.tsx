@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Search,
   Settings,
@@ -13,9 +14,7 @@ import {
   Cloud,
   CheckCircle2,
   CloudOff,
-  AlertCircle,
   CheckSquare,
-  Undo2,
   Sparkles,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
@@ -51,11 +50,8 @@ export function TitleBar() {
     settings,
     isSelectionMode,
     toggleSelectionMode,
-    lastBackupTime,
-    canUndo,
-    undoLastChange,
   } = useStore();
-  
+
   // Count health status
   const healthCounts = Object.values(healthCheckResults).reduce(
     (acc, r) => {
@@ -73,16 +69,16 @@ export function TitleBar() {
 
   const activeProfileData = profiles.find((p) => p.id === activeProfile) || profiles[0];
   const ActiveIcon = activeProfileData.icon;
-  
+
   const activeBrowser = browsers.find((b) => b.id === selectedBrowser) || browsers[0];
 
   return (
-    <header className="titlebar-drag-region flex items-center justify-between h-12 px-4 bg-dark-900/80 backdrop-blur-md border-b border-dark-800">
+    <header className="titlebar-drag-region flex items-center justify-between h-12 px-4 bg-dark-900/80 backdrop-blur-md border-b border-dark-800 relative z-[100]">
       {/* Left: Logo & Title */}
       <div className="flex items-center gap-3">
         {/* macOS traffic lights spacer */}
         <div className="w-16" />
-        <h1 className="text-lg font-semibold gradient-text">Launchpad</h1>
+        <h1 className="text-lg font-semibold gradient-text">LaunchIt</h1>
       </div>
 
       {/* Center: Search */}
@@ -126,23 +122,22 @@ export function TitleBar() {
           onClick={checkAllHealth}
           disabled={isCheckingHealth}
           className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
-                    transition-all duration-200 ${
-                      isCheckingHealth
-                        ? 'bg-dark-800 text-dark-400 cursor-wait'
-                        : totalChecked > 0
-                        ? healthCounts.error > 0
-                          ? 'bg-accent-danger/20 text-accent-danger hover:bg-accent-danger/30'
-                          : healthCounts.warning > 0
-                          ? 'bg-accent-warning/20 text-accent-warning hover:bg-accent-warning/30'
-                          : 'bg-accent-success/20 text-accent-success hover:bg-accent-success/30'
-                        : 'bg-dark-800 text-dark-400 hover:bg-dark-700 hover:text-dark-200'
-                    }`}
+                    transition-all duration-200 ${isCheckingHealth
+              ? 'bg-dark-800 text-dark-400 cursor-wait'
+              : totalChecked > 0
+                ? healthCounts.error > 0
+                  ? 'bg-accent-danger/20 text-accent-danger hover:bg-accent-danger/30'
+                  : healthCounts.warning > 0
+                    ? 'bg-accent-warning/20 text-accent-warning hover:bg-accent-warning/30'
+                    : 'bg-accent-success/20 text-accent-success hover:bg-accent-success/30'
+                : 'bg-dark-800 text-dark-400 hover:bg-dark-700 hover:text-dark-200'
+            }`}
           title={
             isCheckingHealth
               ? 'Checking...'
               : totalChecked > 0
-              ? `${healthCounts.healthy} healthy, ${healthCounts.warning} warnings, ${healthCounts.error} errors`
-              : 'Check bookmark health'
+                ? `${healthCounts.healthy} healthy, ${healthCounts.warning} warnings, ${healthCounts.error} errors`
+                : 'Check bookmark health'
           }
         >
           {isCheckingHealth ? (
@@ -158,9 +153,8 @@ export function TitleBar() {
         {/* Tailscale Status */}
         <div className="flex items-center gap-2 px-2">
           <Wifi
-            className={`w-4 h-4 ${
-              tailscaleStatus.connected ? 'text-accent-tailscale' : 'text-dark-500'
-            }`}
+            className={`w-4 h-4 ${tailscaleStatus.connected ? 'text-accent-tailscale' : 'text-dark-500'
+              }`}
           />
           {tailscaleStatus.connected && tailscaleStatus.tailnetName && (
             <span className="text-xs text-dark-400 hidden xl:block">
@@ -175,10 +169,10 @@ export function TitleBar() {
             isSyncing
               ? 'Syncing...'
               : syncError
-              ? `Sync error: ${syncError}`
-              : lastSyncTime
-              ? `Last synced: ${new Date(lastSyncTime).toLocaleTimeString()}`
-              : 'Sync enabled'
+                ? `Sync error: ${syncError}`
+                : lastSyncTime
+                  ? `Last synced: ${new Date(lastSyncTime).toLocaleTimeString()}`
+                  : 'Sync enabled'
           }>
             {isSyncing ? (
               <Loader2 className="w-4 h-4 text-accent-primary animate-spin" />
@@ -206,9 +200,8 @@ export function TitleBar() {
                 {activeBrowser?.name || 'Browser'}
               </span>
               <svg
-                className={`w-4 h-4 text-dark-400 transition-transform duration-200 ${
-                  isBrowserDropdownOpen ? 'rotate-180' : ''
-                }`}
+                className={`w-4 h-4 text-dark-400 transition-transform duration-200 ${isBrowserDropdownOpen ? 'rotate-180' : ''
+                  }`}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -217,14 +210,19 @@ export function TitleBar() {
               </svg>
             </button>
 
-            {isBrowserDropdownOpen && (
+            {isBrowserDropdownOpen && createPortal(
               <>
                 <div
-                  className="fixed inset-0 z-10"
+                  className="fixed inset-0 z-[1000]"
                   onClick={() => setIsBrowserDropdownOpen(false)}
                 />
-                <div className="absolute right-0 top-full mt-2 w-52 py-2 bg-dark-800 border border-dark-700 
-                              rounded-lg shadow-xl z-20 animate-slide-down">
+                <div
+                  className="fixed mt-1 w-52 py-2 bg-dark-800 border border-dark-700 rounded-lg shadow-xl z-[1001] animate-slide-down"
+                  style={{
+                    top: '44px',
+                    right: '110px'
+                  }}
+                >
                   <div className="px-3 py-1.5 text-xs font-medium text-dark-500 uppercase tracking-wider">
                     Open bookmarks in
                   </div>
@@ -261,7 +259,8 @@ export function TitleBar() {
                     );
                   })}
                 </div>
-              </>
+              </>,
+              document.body
             )}
           </div>
         )}
@@ -276,9 +275,8 @@ export function TitleBar() {
             <ActiveIcon className={`w-4 h-4 ${activeProfileData.color}`} />
             <span className="text-sm font-medium text-dark-200">{activeProfileData.label}</span>
             <svg
-              className={`w-4 h-4 text-dark-400 transition-transform duration-200 ${
-                isProfileDropdownOpen ? 'rotate-180' : ''
-              }`}
+              className={`w-4 h-4 text-dark-400 transition-transform duration-200 ${isProfileDropdownOpen ? 'rotate-180' : ''
+                }`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -287,14 +285,19 @@ export function TitleBar() {
             </svg>
           </button>
 
-          {isProfileDropdownOpen && (
+          {isProfileDropdownOpen && createPortal(
             <>
               <div
-                className="fixed inset-0 z-10"
+                className="fixed inset-0 z-[1000]"
                 onClick={() => setIsProfileDropdownOpen(false)}
               />
-              <div className="absolute right-0 top-full mt-2 w-48 py-2 bg-dark-800 border border-dark-700 
-                            rounded-lg shadow-xl z-20 animate-slide-down">
+              <div
+                className="fixed mt-1 w-48 py-2 bg-dark-800 border border-dark-700 rounded-lg shadow-xl z-[1001] animate-slide-down"
+                style={{
+                  top: '44px',
+                  right: '10px'
+                }}
+              >
                 <div className="px-3 py-1.5 text-xs font-medium text-dark-500 uppercase tracking-wider">
                   Network Profile
                 </div>
@@ -340,18 +343,18 @@ export function TitleBar() {
                   );
                 })}
               </div>
-            </>
+            </>,
+            document.body
           )}
         </div>
 
         {/* Selection Mode Toggle */}
         <button
           onClick={toggleSelectionMode}
-          className={`p-2 rounded-lg transition-all duration-200 ${
-            isSelectionMode
-              ? 'bg-accent-primary/20 text-accent-primary hover:bg-accent-primary/30'
-              : 'text-dark-400 hover:text-dark-200 hover:bg-dark-800'
-          }`}
+          className={`p-2 rounded-lg transition-all duration-200 ${isSelectionMode
+            ? 'bg-accent-primary/20 text-accent-primary hover:bg-accent-primary/30'
+            : 'text-dark-400 hover:text-dark-200 hover:bg-dark-800'
+            }`}
           title={isSelectionMode ? 'Exit Selection Mode' : 'Select Items'}
         >
           <CheckSquare className="w-5 h-5" />

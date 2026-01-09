@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { 
+import {
   X, RefreshCw, Download, Upload, FileUp, Check, Globe,
   Settings, Wifi, Database, Info, Terminal, Palette, Image, Loader2, Shield,
   Lock, Eye, EyeOff, AlertCircle, Keyboard, Command, Cloud, CloudOff, CheckCircle2,
@@ -34,11 +34,12 @@ const SHORTCUTS = [
   { keys: ['1-9'], description: 'Select group' },
   { keys: ['0'], description: 'Show all groups' },
   { keys: ['Esc'], description: 'Close modal / Clear search' },
+  { keys: [isMac ? '⌥' : 'Alt', 'Space'], description: 'Global Search (Quick Launcher)' },
 ];
 
 export function SettingsModal() {
   const { isSettingsOpen, closeSettings, settings, tailscaleStatus, refreshTailscaleStatus, groups, loadData, fetchFavicons, isFetchingFavicons, faviconProgress, isVaultSetup, lockVault } = useStore();
-  
+
   // Helper to update settings and refresh store
   const updateSettings = async (updates: Partial<typeof settings>) => {
     const res = await window.api.settings.update(updates);
@@ -55,7 +56,7 @@ export function SettingsModal() {
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [selectedImportGroup, setSelectedImportGroup] = useState<string>('');
   const [isBrowserImportOpen, setIsBrowserImportOpen] = useState(false);
-  
+
   // Sync state
   const [syncEnabled, setSyncEnabled] = useState(false);
   const [syncUrl, setSyncUrl] = useState('');
@@ -67,7 +68,7 @@ export function SettingsModal() {
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
-  
+
   // Security state
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -76,13 +77,16 @@ export function SettingsModal() {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  
+
   // AI state
   const [aiEnabled, setAiEnabled] = useState(false);
   const [groqApiKey, setGroqApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
   const [isTestingAiConnection, setIsTestingAiConnection] = useState(false);
   const [aiConnectionStatus, setAiConnectionStatus] = useState<string | null>(null);
+
+  // Hotkey state
+  const [globalSearchHotkey, setGlobalSearchHotkey] = useState('Option+Space');
 
   useEffect(() => {
     if (settings) {
@@ -98,6 +102,7 @@ export function SettingsModal() {
       setAiEnabled(settings.aiEnabled || false);
       setGroqApiKey(settings.groqApiKey || '');
       setShowApiKey(false);
+      setGlobalSearchHotkey(settings.globalSearchHotkey || (isMac ? 'Option+Space' : 'Alt+Space'));
     }
     if (groups.length > 0 && !selectedImportGroup) {
       setSelectedImportGroup(groups[0].id);
@@ -199,7 +204,7 @@ export function SettingsModal() {
       setImportStatus('Please select a group first');
       return;
     }
-    
+
     setImportStatus('Importing bookmarks...');
     try {
       const result = await window.api.data.importBrowserBookmarks(selectedImportGroup);
@@ -250,8 +255,8 @@ export function SettingsModal() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors
                            ${activeTab === tab.id
-                             ? 'bg-accent-primary/10 text-accent-primary border-r-2 border-accent-primary'
-                             : 'text-dark-400 hover:text-dark-200 hover:bg-dark-800'}`}
+                      ? 'bg-accent-primary/10 text-accent-primary border-r-2 border-accent-primary'
+                      : 'text-dark-400 hover:text-dark-200 hover:bg-dark-800'}`}
                 >
                   <Icon className="w-4 h-4" />
                   {tab.label}
@@ -307,9 +312,8 @@ export function SettingsModal() {
                   <h3 className="text-lg font-medium text-dark-100 mb-4">Vault Status</h3>
                   <div className="p-4 bg-dark-800/50 rounded-xl">
                     <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                        isVaultSetup ? 'bg-accent-success/20' : 'bg-dark-700'
-                      }`}>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isVaultSetup ? 'bg-accent-success/20' : 'bg-dark-700'
+                        }`}>
                         <Shield className={`w-5 h-5 ${isVaultSetup ? 'text-accent-success' : 'text-dark-400'}`} />
                       </div>
                       <div>
@@ -317,7 +321,7 @@ export function SettingsModal() {
                           {isVaultSetup ? 'Encryption Enabled' : 'Not Set Up'}
                         </p>
                         <p className="text-xs text-dark-400">
-                          {isVaultSetup 
+                          {isVaultSetup
                             ? 'Your credentials are encrypted with your master password'
                             : 'Set up a master password to encrypt credentials'}
                         </p>
@@ -432,9 +436,8 @@ export function SettingsModal() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div
-                          className={`w-3 h-3 rounded-full ${
-                            tailscaleStatus.connected ? 'bg-accent-success animate-pulse' : 'bg-dark-500'
-                          }`}
+                          className={`w-3 h-3 rounded-full ${tailscaleStatus.connected ? 'bg-accent-success animate-pulse' : 'bg-dark-500'
+                            }`}
                         />
                         <div>
                           <p className="text-sm font-medium text-dark-200">
@@ -527,6 +530,33 @@ export function SettingsModal() {
                   </div>
                 </div>
 
+                <div>
+                  <h3 className="text-lg font-medium text-dark-100 mb-4">Global Launcher</h3>
+                  <div className="p-4 bg-dark-800/50 rounded-xl space-y-4">
+                    <div>
+                      <label className="input-label text-xs">Global Shortcut</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={globalSearchHotkey}
+                          onChange={(e) => setGlobalSearchHotkey(e.target.value)}
+                          placeholder="e.g. Option+Space"
+                          className="input-base text-sm"
+                        />
+                        <button
+                          onClick={() => updateSettings({ globalSearchHotkey })}
+                          className="btn-primary whitespace-nowrap"
+                        >
+                          Update Hotkey
+                        </button>
+                      </div>
+                      <p className="text-xs text-dark-500 mt-2">
+                        Used to open the search bar from anywhere. Use Electron accelerator format (e.g. <code>CmdOrCtrl+Shift+Space</code>).
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="p-4 bg-dark-800/30 rounded-lg">
                   <p className="text-xs text-dark-500 text-center">
                     💡 Tip: Press number keys 1-9 to quickly switch between groups
@@ -540,11 +570,10 @@ export function SettingsModal() {
               <div className="space-y-6">
                 {/* Status Messages */}
                 {(exportStatus || importStatus || syncStatus) && (
-                  <div className={`p-3 rounded-lg text-sm flex items-center gap-2 ${
-                    (exportStatus?.includes('failed') || importStatus?.includes('failed') || syncStatus?.includes('failed') || syncStatus?.includes('Error'))
-                      ? 'bg-accent-danger/10 text-accent-danger'
-                      : 'bg-accent-success/10 text-accent-success'
-                  }`}>
+                  <div className={`p-3 rounded-lg text-sm flex items-center gap-2 ${(exportStatus?.includes('failed') || importStatus?.includes('failed') || syncStatus?.includes('failed') || syncStatus?.includes('Error'))
+                    ? 'bg-accent-danger/10 text-accent-danger'
+                    : 'bg-accent-success/10 text-accent-success'
+                    }`}>
                     <Check className="w-4 h-4" />
                     {exportStatus || importStatus || syncStatus}
                   </div>
@@ -553,7 +582,7 @@ export function SettingsModal() {
                 {/* Sync */}
                 <div>
                   <h3 className="text-lg font-medium text-dark-100 mb-4">Sync (WebDAV/Nextcloud)</h3>
-                  
+
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
@@ -566,14 +595,12 @@ export function SettingsModal() {
                           setSyncEnabled(newValue);
                           window.api.settings.update({ syncEnabled: newValue });
                         }}
-                        className={`relative w-12 h-6 rounded-full transition-colors ${
-                          syncEnabled ? 'bg-accent-primary' : 'bg-dark-700'
-                        }`}
+                        className={`relative w-12 h-6 rounded-full transition-colors ${syncEnabled ? 'bg-accent-primary' : 'bg-dark-700'
+                          }`}
                       >
                         <div
-                          className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                            syncEnabled ? 'translate-x-6' : 'translate-x-0'
-                          }`}
+                          className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${syncEnabled ? 'translate-x-6' : 'translate-x-0'
+                            }`}
                         />
                       </button>
                     </div>
@@ -643,7 +670,7 @@ export function SettingsModal() {
                             </button>
                           </div>
                           <p className="text-xs text-dark-500 mt-1">
-                            {hasSavedPassword && !syncPassword 
+                            {hasSavedPassword && !syncPassword
                               ? 'Password is saved. Leave empty to keep existing password, or enter a new one to change it.'
                               : 'Password is encrypted with your master password'}
                           </p>
@@ -656,15 +683,15 @@ export function SettingsModal() {
                                 setSyncStatus('Please fill in all fields');
                                 return;
                               }
-                              
+
                               setIsTestingConnection(true);
                               setSyncStatus(null);
-                              
+
                               try {
                                 // Use existing password if new one not provided
                                 let passwordToTest = syncPassword;
                                 let passwordToSave = settings?.syncPassword; // Keep existing if not changed
-                                
+
                                 if (syncPassword) {
                                   // Encrypt new password before testing
                                   const encryptRes = await window.api.encryption.encrypt(syncPassword);
@@ -677,7 +704,7 @@ export function SettingsModal() {
                                   setSyncStatus('Please enter a password');
                                   return;
                                 }
-                                
+
                                 // For testing, we need the plain password - decrypt if using saved
                                 if (!passwordToTest && hasSavedPassword && settings?.syncPassword) {
                                   const decryptRes = await window.api.encryption.decrypt(settings.syncPassword);
@@ -688,7 +715,7 @@ export function SettingsModal() {
                                     return;
                                   }
                                 }
-                                
+
                                 const testRes = await window.api.sync.testConnection(syncUrl, syncUsername, passwordToTest);
                                 if (testRes.success) {
                                   // Save settings (only update password if it was changed)
@@ -728,12 +755,12 @@ export function SettingsModal() {
                               </>
                             )}
                           </button>
-                          
+
                           <button
                             onClick={async () => {
                               setIsSyncing(true);
                               setSyncStatus(null);
-                              
+
                               try {
                                 const res = await window.api.sync.upload();
                                 if (res.success) {
@@ -844,7 +871,7 @@ export function SettingsModal() {
                 {/* Browser Import */}
                 <div>
                   <h3 className="text-lg font-medium text-dark-100 mb-4">Import Browser Bookmarks</h3>
-                  <button 
+                  <button
                     onClick={() => setIsBrowserImportOpen(true)}
                     className="btn-primary w-full mb-3"
                   >
@@ -876,7 +903,7 @@ export function SettingsModal() {
                         </option>
                       ))}
                     </select>
-                    <button 
+                    <button
                       onClick={handleImportBrowserBookmarks}
                       className="btn-secondary w-full"
                     >
@@ -912,14 +939,12 @@ export function SettingsModal() {
                         setAiEnabled(newValue);
                         await updateSettings({ aiEnabled: newValue });
                       }}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        aiEnabled ? 'bg-accent-primary' : 'bg-dark-700'
-                      }`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${aiEnabled ? 'bg-accent-primary' : 'bg-dark-700'
+                        }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          aiEnabled ? 'translate-x-6' : 'translate-x-1'
-                        }`}
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${aiEnabled ? 'translate-x-6' : 'translate-x-1'
+                          }`}
                       />
                     </button>
                   </div>
@@ -968,12 +993,12 @@ export function SettingsModal() {
                     onClick={async () => {
                       setIsTestingAiConnection(true);
                       setAiConnectionStatus(null);
-                      
+
                       // Save API key first
                       if (groqApiKey) {
                         await updateSettings({ groqApiKey, aiEnabled: true });
                       }
-                      
+
                       const res = await window.api.ai.testConnection();
                       if (res.success && res.data?.success) {
                         setAiConnectionStatus('success');
@@ -997,7 +1022,7 @@ export function SettingsModal() {
                       </>
                     )}
                   </button>
-                  
+
                   {aiConnectionStatus === 'success' && (
                     <p className="text-xs text-green-500 flex items-center gap-1">
                       <CheckCircle2 className="w-3 h-3" />
@@ -1103,6 +1128,6 @@ export function SettingsModal() {
         isOpen={isBrowserImportOpen}
         onClose={() => setIsBrowserImportOpen(false)}
       />
-    </div>
+    </div >
   );
 }

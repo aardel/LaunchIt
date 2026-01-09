@@ -127,6 +127,7 @@ export interface AppSettings {
   // AI Features
   aiEnabled: boolean;
   groqApiKey?: string; // Encrypted
+  globalSearchHotkey: string;
   // Encryption
   encryptionSalt?: string;
   encryptionVerification?: string;

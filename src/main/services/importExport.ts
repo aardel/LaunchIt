@@ -21,8 +21,8 @@ export class ImportExportService {
   async exportData(groups: Group[], items: AnyItem[]): Promise<{ success: boolean; path?: string; error?: string }> {
     try {
       const result = await dialog.showSaveDialog({
-        title: 'Export Launchpad Data',
-        defaultPath: `launchpad-backup-${new Date().toISOString().split('T')[0]}.json`,
+        title: 'Export LaunchIt Data',
+        defaultPath: `launchit-backup-${new Date().toISOString().split('T')[0]}.json`,
         filters: [
           { name: 'JSON Files', extensions: ['json'] },
           { name: 'All Files', extensions: ['*'] },
@@ -41,7 +41,7 @@ export class ImportExportService {
       };
 
       writeFileSync(result.filePath, JSON.stringify(exportData, null, 2), 'utf-8');
-      
+
       return { success: true, path: result.filePath };
     } catch (error) {
       return { success: false, error: String(error) };
@@ -51,7 +51,7 @@ export class ImportExportService {
   async importData(): Promise<{ success: boolean; data?: ExportData; error?: string }> {
     try {
       const result = await dialog.showOpenDialog({
-        title: 'Import Launchpad Data',
+        title: 'Import LaunchIt Data',
         filters: [
           { name: 'JSON Files', extensions: ['json'] },
           { name: 'All Files', extensions: ['*'] },
@@ -68,7 +68,7 @@ export class ImportExportService {
 
       // Check if it's sync format (version is number) or export format (version is string)
       let data: ExportData;
-      
+
       if (typeof parsed.version === 'number' && parsed.lastSync) {
         // Sync format - convert to export format
         data = {
@@ -116,7 +116,7 @@ export class ImportExportService {
 
       // Handle both sync format and export format
       let data: ExportData;
-      
+
       if (typeof parsed.version === 'number' && parsed.lastSync) {
         // Sync format - convert to export format
         data = {
@@ -170,7 +170,7 @@ export class ImportExportService {
 
   private parseBrowserBookmarks(html: string): Partial<AnyItem>[] {
     const bookmarks: Partial<AnyItem>[] = [];
-    
+
     // Simple regex to extract bookmarks from Netscape bookmark format
     // Format: <A HREF="url" ... >name</A>
     const regex = /<A\s+HREF="([^"]+)"[^>]*>([^<]+)<\/A>/gi;

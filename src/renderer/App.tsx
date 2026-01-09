@@ -9,13 +9,26 @@ import { GroupModal } from './components/Modals/GroupModal';
 import { SettingsModal } from './components/Modals/SettingsModal';
 import { UnlockModal } from './components/Modals/UnlockModal';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { QuickSearch } from './components/QuickSearch/QuickSearch';
+
+declare global {
+  interface Window {
+    electron: {
+      ipcRenderer: {
+        on: (channel: string, func: (...args: any[]) => void) => void;
+        removeListener: (channel: string, func: (...args: any[]) => void) => void;
+      };
+    };
+    api: any;
+  }
+}
 
 function App() {
   const { loadData, isLoading, error, refreshTailscaleStatus, fetchFavicons, refreshExpiredFavicons, items, setSyncStatus, settings, isVaultSetup, isVaultLocked, loadData: reloadData } = useStore();
 
   useEffect(() => {
     loadData();
-    
+
     // Refresh Tailscale status periodically
     const interval = setInterval(refreshTailscaleStatus, 30000);
     return () => clearInterval(interval);
@@ -55,8 +68,6 @@ function App() {
       console.log('Bookmark added via extension:', item);
       // Reload data to include the new bookmark
       reloadData();
-      // Show a simple notification (you can enhance this with a toast component later)
-      // For now, just reload the data
     };
 
     // @ts-ignore - window.electron is available in Electron context
@@ -71,14 +82,14 @@ function App() {
   // Listen for backup created events
   useEffect(() => {
     const handleBackupCreated = (_event: any, data: { timestamp: string }) => {
-      useStore.setState({ 
+      useStore.setState({
         lastBackupTime: data.timestamp,
         canUndo: true,
       });
     };
 
     const handleBackupRestored = (_event: any, data: { timestamp: string; groupsCount: number; itemsCount: number }) => {
-      useStore.setState({ 
+      useStore.setState({
         lastBackupTime: null,
         canUndo: false,
       });
@@ -106,7 +117,7 @@ function App() {
       }, 500); // 500ms delay to prioritize UI rendering
       return () => clearTimeout(timeout);
     }
-  }, [items.length, fetchFavicons]); // Only run when items count changes, not on every render
+  }, [items.length, fetchFavicons]);
 
   // Periodically refresh expired favicons in background (every hour)
   useEffect(() => {
@@ -114,12 +125,12 @@ function App() {
       const interval = setInterval(() => {
         refreshExpiredFavicons();
       }, 60 * 60 * 1000); // 1 hour
-      
+
       // Also refresh once after initial load (after 5 minutes)
       const initialTimeout = setTimeout(() => {
         refreshExpiredFavicons();
       }, 5 * 60 * 1000); // 5 minutes
-      
+
       return () => {
         clearInterval(interval);
         clearTimeout(initialTimeout);
@@ -130,9 +141,8 @@ function App() {
   // Auto-sync on app load if sync is enabled but hasn't synced yet
   useEffect(() => {
     if (settings?.syncEnabled && !settings.lastSync && isVaultSetup && !isVaultLocked) {
-      // Sync is enabled but never synced - trigger initial sync
       console.log('Auto-syncing on first load...');
-      window.api.sync.upload().catch((error) => {
+      window.api.sync.upload().catch((error: any) => {
         console.error('Auto-sync failed:', error);
       });
     }
@@ -140,6 +150,17 @@ function App() {
 
   // Initialize keyboard shortcuts
   useKeyboardShortcuts();
+
+  // Check if we are in Quick Search mode
+  const isQuickSearch = window.location.pathname === '/quick-search' || window.location.hash === '#quick-search';
+
+  if (isQuickSearch) {
+    return (
+      <div className="h-screen bg-transparent overflow-hidden p-2 text-dark-100">
+        <QuickSearch />
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -191,4 +212,3 @@ function App() {
 }
 
 export default App;
-

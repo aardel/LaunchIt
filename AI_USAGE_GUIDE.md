@@ -1,6 +1,6 @@
 # AI Features Usage Guide
 
-Launchpad includes AI-powered features using Groq's free API. Here's how to use them:
+LaunchIt includes AI-powered features using Groq's free API. Here's how to use them:
 
 ## 🚀 Quick Setup
 
@@ -9,7 +9,7 @@ Launchpad includes AI-powered features using Groq's free API. Here's how to use 
    - Sign up (no credit card required)
    - Create API key in API Keys section
 
-2. **Enable in Launchpad**
+2. **Enable in LaunchIt**
    - Open Settings (⌘,)
    - Go to "AI Features" tab
    - Paste your API key

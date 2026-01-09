@@ -18,35 +18,35 @@ import type {
 const api = {
   // Items
   items: {
-    getAll: (): Promise<IPCResponse<AnyItem[]>> => 
+    getAll: (): Promise<IPCResponse<AnyItem[]>> =>
       ipcRenderer.invoke('items:getAll'),
-    getByGroup: (groupId: string): Promise<IPCResponse<AnyItem[]>> => 
+    getByGroup: (groupId: string): Promise<IPCResponse<AnyItem[]>> =>
       ipcRenderer.invoke('items:getByGroup', groupId),
-    getRecent: (limit?: number): Promise<IPCResponse<AnyItem[]>> => 
+    getRecent: (limit?: number): Promise<IPCResponse<AnyItem[]>> =>
       ipcRenderer.invoke('items:getRecent', limit),
-    create: (input: CreateItemInput): Promise<IPCResponse<AnyItem>> => 
+    create: (input: CreateItemInput): Promise<IPCResponse<AnyItem>> =>
       ipcRenderer.invoke('items:create', input),
-    update: (input: UpdateItemInput): Promise<IPCResponse<AnyItem>> => 
+    update: (input: UpdateItemInput): Promise<IPCResponse<AnyItem>> =>
       ipcRenderer.invoke('items:update', input),
-    delete: (id: string): Promise<IPCResponse<void>> => 
+    delete: (id: string): Promise<IPCResponse<void>> =>
       ipcRenderer.invoke('items:delete', id),
-    batchDelete: (ids: string[]): Promise<IPCResponse<void>> => 
+    batchDelete: (ids: string[]): Promise<IPCResponse<void>> =>
       ipcRenderer.invoke('items:batchDelete', ids),
-    reorder: (items: { id: string; sortOrder: number }[]): Promise<IPCResponse<void>> => 
+    reorder: (items: { id: string; sortOrder: number }[]): Promise<IPCResponse<void>> =>
       ipcRenderer.invoke('items:reorder', items),
   },
 
   // Groups
   groups: {
-    getAll: (): Promise<IPCResponse<Group[]>> => 
+    getAll: (): Promise<IPCResponse<Group[]>> =>
       ipcRenderer.invoke('groups:getAll'),
-    create: (input: CreateGroupInput): Promise<IPCResponse<Group>> => 
+    create: (input: CreateGroupInput): Promise<IPCResponse<Group>> =>
       ipcRenderer.invoke('groups:create', input),
-    update: (input: UpdateGroupInput): Promise<IPCResponse<Group>> => 
+    update: (input: UpdateGroupInput): Promise<IPCResponse<Group>> =>
       ipcRenderer.invoke('groups:update', input),
-    delete: (id: string): Promise<IPCResponse<void>> => 
+    delete: (id: string): Promise<IPCResponse<void>> =>
       ipcRenderer.invoke('groups:delete', id),
-    reorder: (groups: { id: string; sortOrder: number }[]): Promise<IPCResponse<void>> => 
+    reorder: (groups: { id: string; sortOrder: number }[]): Promise<IPCResponse<void>> =>
       ipcRenderer.invoke('groups:reorder', groups),
   },
 
@@ -58,39 +58,39 @@ const api = {
 
   // Launcher
   launch: {
-    item: (item: AnyItem, profile: NetworkProfile, browserId?: string): Promise<IPCResponse<void>> => 
+    item: (item: AnyItem, profile: NetworkProfile, browserId?: string): Promise<IPCResponse<void>> =>
       ipcRenderer.invoke('launch:item', item, profile, browserId),
-    group: (groupId: string, profile: NetworkProfile, browserId?: string): Promise<IPCResponse<void>> => 
+    group: (groupId: string, profile: NetworkProfile, browserId?: string): Promise<IPCResponse<void>> =>
       ipcRenderer.invoke('launch:group', groupId, profile, browserId),
-    url: (url: string): Promise<IPCResponse<void>> => 
+    url: (url: string): Promise<IPCResponse<void>> =>
       ipcRenderer.invoke('launch:url', url),
   },
 
   // Tailscale
   tailscale: {
-    getStatus: (): Promise<IPCResponse<TailscaleStatus>> => 
+    getStatus: (): Promise<IPCResponse<TailscaleStatus>> =>
       ipcRenderer.invoke('tailscale:status'),
   },
 
   // Settings
   settings: {
-    get: (): Promise<IPCResponse<AppSettings>> => 
+    get: (): Promise<IPCResponse<AppSettings>> =>
       ipcRenderer.invoke('settings:get'),
-    update: (settings: Partial<AppSettings>): Promise<IPCResponse<AppSettings>> => 
+    update: (settings: Partial<AppSettings>): Promise<IPCResponse<AppSettings>> =>
       ipcRenderer.invoke('settings:update', settings),
   },
 
   // System
   system: {
-    getTheme: (): Promise<IPCResponse<'dark' | 'light'>> => 
+    getTheme: (): Promise<IPCResponse<'dark' | 'light'>> =>
       ipcRenderer.invoke('system:getTheme'),
-    selectApp: (): Promise<IPCResponse<string | null>> => 
+    selectApp: (): Promise<IPCResponse<string | null>> =>
       ipcRenderer.invoke('system:selectApp'),
   },
 
   // Search
   search: {
-    items: (query: string): Promise<IPCResponse<AnyItem[]>> => 
+    items: (query: string): Promise<IPCResponse<AnyItem[]>> =>
       ipcRenderer.invoke('search:items', query),
   },
 
@@ -184,6 +184,11 @@ const api = {
       ipcRenderer.invoke('ai:findSimilarItems', name, url, existingItems),
     semanticSearch: (query: string, items: Array<{ name: string; description?: string; url?: string; id: string }>): Promise<IPCResponse<Array<{ id: string; name: string; description?: string; url?: string; relevance: string }> | null>> =>
       ipcRenderer.invoke('ai:semanticSearch', query, items),
+  },
+
+  // Quick Search Window
+  quickSearch: {
+    hide: (): Promise<void> => ipcRenderer.invoke('quickSearch:hide'),
   },
 
   // Backup & Undo

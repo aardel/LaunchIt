@@ -19,13 +19,13 @@ export class LauncherService {
     this.browserService = browserService;
   }
 
-  async launchItem(item: AnyItem, profile: NetworkProfile, browserId?: string, decryptedPassword?: string): Promise<void> {
+  async launchItem(item: AnyItem, profile: NetworkProfile, browserId?: string, decryptedPassword?: string, terminal?: string): Promise<void> {
     switch (item.type) {
       case 'bookmark':
         await this.launchBookmark(item, profile, browserId);
         break;
       case 'ssh':
-        await this.launchSSH(item, profile, decryptedPassword);
+        await this.launchSSH(item, profile, decryptedPassword, terminal);
         break;
       case 'app':
         await this.launchApp(item);
@@ -66,7 +66,7 @@ export class LauncherService {
     }
   }
 
-  private async launchSSH(item: SSHItem, profile: NetworkProfile, password?: string): Promise<void> {
+  private async launchSSH(item: SSHItem, profile: NetworkProfile, password?: string, terminal: string = 'Terminal'): Promise<void> {
     const host = this.getAddressForProfile(item.networkAddresses, profile);
     if (!host) {
       throw new Error('No address configured for this profile');
@@ -78,20 +78,20 @@ export class LauncherService {
     const platform = process.platform;
 
     if (platform === 'darwin') {
+      const isITerm = terminal.toLowerCase().includes('iterm');
+      const terminalApp = isITerm ? 'iTerm' : 'Terminal';
+      
+      let sshCommand = '';
+      let tempScript = '';
+      let hasCleanup = false;
+
       if (password) {
         // Use sshpass if available, otherwise use expect script
         const hasSshpass = await this.checkCommand('sshpass');
         
         if (hasSshpass) {
           // Use sshpass for password authentication
-          const sshCommand = `sshpass -p '${this.escapeShellArg(password)}' ssh -o StrictHostKeyChecking=accept-new ${username}@${host} -p ${port}`;
-          const script = `
-            tell application "Terminal"
-              activate
-              do script "${sshCommand}"
-            end tell
-          `;
-          await execAsync(`osascript -e '${script}'`);
+          sshCommand = `sshpass -p '${this.escapeShellArg(password)}' ssh -o StrictHostKeyChecking=accept-new ${username}@${host} -p ${port}`;
         } else {
           // Use expect script for password authentication
           const expectScript = `
@@ -118,30 +118,54 @@ export class LauncherService {
           `;
           
           // Write expect script to temp file and execute
-          const tempScript = `/tmp/launchpad_ssh_${Date.now()}.exp`;
-          const { writeFileSync, unlinkSync } = require('fs');
+          tempScript = `/tmp/launchpad_ssh_${Date.now()}.exp`;
+          const { writeFileSync } = require('fs');
           writeFileSync(tempScript, expectScript);
-          
-          const script = `
-            tell application "Terminal"
-              activate
-              do script "expect '${tempScript}' && rm '${tempScript}'"
-            end tell
-          `;
-          await execAsync(`osascript -e '${script}'`);
+          sshCommand = `expect '${tempScript}' && rm '${tempScript}'`;
+          hasCleanup = true;
         }
       } else {
         // No password - standard SSH
-        const sshCommand = `ssh ${username}@${host} -p ${port}`;
-        const script = `
-          tell application "Terminal"
+        sshCommand = `ssh ${username}@${host} -p ${port}`;
+      }
+
+      // Terminal-specific AppleScript
+      let script = '';
+      if (isITerm) {
+        script = `
+          tell application "iTerm"
             activate
-            do script "${sshCommand}"
+            set newWindow to (create window with default profile)
+            tell current session of newWindow
+              write text "${sshCommand.replace(/"/g, '\\"')}"
+            end tell
           end tell
         `;
+      } else {
+        // Default Terminal.app
+        script = `
+          tell application "Terminal"
+            activate
+            do script "${sshCommand.replace(/"/g, '\\"')}"
+          end tell
+        `;
+      }
+
+      try {
         await execAsync(`osascript -e '${script}'`);
+      } catch (error) {
+        console.error(`Failed to launch ${terminalApp}:`, error);
+        // Fallback for expect script cleanup if osascript failed
+        if (hasCleanup && tempScript) {
+          const { unlinkSync, existsSync } = require('fs');
+          if (existsSync(tempScript)) {
+            unlinkSync(tempScript);
+          }
+        }
+        throw error;
       }
     } else if (platform === 'win32') {
+
       // Windows - open in Windows Terminal or cmd
       const sshCommand = `ssh ${username}@${host} -p ${port}`;
       try {

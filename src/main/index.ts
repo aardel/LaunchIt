@@ -1,5 +1,6 @@
-import { app, BrowserWindow, ipcMain, shell, nativeTheme } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, nativeTheme, globalShortcut } from 'electron';
 import path from 'path';
+import { QuickSearchWindow } from './windows/QuickSearchWindow';
 import { DatabaseService } from './services/database';
 import { TailscaleService } from './services/tailscale';
 import { LauncherService } from './services/launcher';
@@ -26,6 +27,7 @@ import {
 } from '../shared/types';
 
 let mainWindow: BrowserWindow | null = null;
+let quickSearchWindow: QuickSearchWindow | null = null;
 let db: DatabaseService | null = null;
 let tailscale: TailscaleService;
 let launcher: LauncherService;
@@ -93,10 +95,10 @@ function createWindow() {
 
 async function initializeServices() {
   const userDataPath = app.getPath('userData');
-  
-  db = new DatabaseService(path.join(userDataPath, 'launchpad.db'));
+
+  db = new DatabaseService(path.join(userDataPath, 'launchit.db'));
   await db.initialize();
-  
+
   tailscale = new TailscaleService();
   browserService = new BrowserService();
   launcher = new LauncherService(browserService);
@@ -108,14 +110,14 @@ async function initializeServices() {
   syncService = new SyncService(encryption);
   extensionServer = new ExtensionServer(db);
   backupService = new BackupService();
-  
+
   // Initialize AI service
   const settings = db.getSettings();
   aiService = new AIService({
     apiKey: settings.groqApiKey,
     enabled: settings.aiEnabled || false,
   });
-  
+
   // Set callback for when bookmarks are added via extension
   extensionServer.setOnBookmarkAdded((item) => {
     // Notify renderer process
@@ -123,10 +125,10 @@ async function initializeServices() {
       mainWindow.webContents.send('extension:bookmark-added', item);
     }
   });
-  
+
   // Start extension server
   extensionServer.start();
-  
+
   // Pre-cache browser list
   await browserService.getInstalledBrowsers();
 }
@@ -178,15 +180,15 @@ function setupIPC() {
         const items = getDb().getAllItems();
         await backupService.createBackup(groups, items);
       }
-      
+
       const item = getDb().updateItem(input);
       triggerSync();
-      
+
       // Notify renderer that backup was created
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('backup:created', { timestamp: new Date().toISOString() });
       }
-      
+
       return { success: true, data: item };
     } catch (error) {
       return { success: false, error: String(error) };
@@ -201,15 +203,15 @@ function setupIPC() {
         const items = getDb().getAllItems();
         await backupService.createBackup(groups, items);
       }
-      
+
       getDb().deleteItem(id);
       triggerSync();
-      
+
       // Notify renderer that backup was created
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('backup:created', { timestamp: new Date().toISOString() });
       }
-      
+
       return { success: true };
     } catch (error) {
       return { success: false, error: String(error) };
@@ -224,15 +226,15 @@ function setupIPC() {
         const items = getDb().getAllItems();
         await backupService.createBackup(groups, items);
       }
-      
+
       getDb().batchDeleteItems(ids);
       triggerSync();
-      
+
       // Notify renderer that backup was created
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('backup:created', { timestamp: new Date().toISOString() });
       }
-      
+
       return { success: true };
     } catch (error) {
       return { success: false, error: String(error) };
@@ -313,7 +315,9 @@ function setupIPC() {
   ipcMain.handle('launch:item', async (_, item: AnyItem, profile: NetworkProfile, browserId?: string): Promise<IPCResponse<void>> => {
     try {
       let decryptedPassword: string | undefined;
-      
+      const settings = getDb().getSettings();
+      const terminal = settings.defaultTerminal;
+
       // For SSH items, try to decrypt the password if it exists
       if (item.type === 'ssh') {
         const sshItem = item as any;
@@ -330,8 +334,8 @@ function setupIPC() {
           }
         }
       }
-      
-      await launcher.launchItem(item, profile, browserId, decryptedPassword);
+
+      await launcher.launchItem(item, profile, browserId, decryptedPassword, terminal);
       getDb().incrementAccessCount(item.id);
       return { success: true };
     } catch (error) {
@@ -342,12 +346,14 @@ function setupIPC() {
   ipcMain.handle('launch:group', async (_, groupId: string, profile: NetworkProfile, browserId?: string): Promise<IPCResponse<void>> => {
     try {
       const database = getDb();
+      const settings = database.getSettings();
+      const terminal = settings.defaultTerminal;
       const items = database.getItemsByGroup(groupId);
       const group = database.getGroup(groupId);
       const delay = group?.batchOpenDelay || 500;
-      
+
       for (let i = 0; i < items.length; i++) {
-        await launcher.launchItem(items[i], profile, browserId);
+        await launcher.launchItem(items[i], profile, browserId, undefined, terminal);
         database.incrementAccessCount(items[i].id);
         if (i < items.length - 1) {
           await new Promise(resolve => setTimeout(resolve, delay));
@@ -391,12 +397,12 @@ function setupIPC() {
   ipcMain.handle('settings:update', async (_, settings: Partial<AppSettings>): Promise<IPCResponse<AppSettings>> => {
     try {
       const updated = getDb().updateSettings(settings);
-      
+
       // Update AI service if API key changed
       if (settings.groqApiKey !== undefined) {
         aiService.setApiKey(settings.groqApiKey);
       }
-      
+
       return { success: true, data: updated };
     } catch (error) {
       return { success: false, error: String(error) };
@@ -485,21 +491,21 @@ function setupIPC() {
       }
 
       const database = getDb();
-      
+
       // Clear existing data
       const allItems = database.getAllItems();
       const allGroups = database.getAllGroups();
-      
+
       // Delete all items
       for (const item of allItems) {
         database.deleteItem(item.id);
       }
-      
+
       // Delete all groups
       for (const group of allGroups) {
         database.deleteGroup(group.id);
       }
-      
+
       // Restore from backup
       for (const group of backup.groups) {
         database.createGroup({
@@ -510,7 +516,7 @@ function setupIPC() {
           batchOpenDelay: group.batchOpenDelay,
         });
       }
-      
+
       // Restore items (need to get groups first to map IDs)
       const restoredGroups = database.getAllGroups();
       for (const item of backup.items) {
@@ -580,24 +586,24 @@ function setupIPC() {
           }
         }
       }
-      
+
       triggerSync();
-      
+
       // Notify renderer
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('backup:restored', { 
+        mainWindow.webContents.send('backup:restored', {
           timestamp: backup.timestamp,
           groupsCount: backup.groups.length,
           itemsCount: backup.items.length,
         });
       }
-      
-      return { 
-        success: true, 
-        data: { 
-          groupsCount: backup.groups.length, 
-          itemsCount: backup.items.length 
-        } 
+
+      return {
+        success: true,
+        data: {
+          groupsCount: backup.groups.length,
+          itemsCount: backup.items.length
+        }
       };
     } catch (error) {
       return { success: false, error: String(error) };
@@ -623,11 +629,11 @@ function setupIPC() {
         { name: 'Applications', extensions: ['app', 'exe', ''] },
       ],
     });
-    
+
     if (result.canceled || result.filePaths.length === 0) {
       return { success: true, data: null };
     }
-    
+
     return { success: true, data: result.filePaths[0] };
   });
 
@@ -648,7 +654,7 @@ function setupIPC() {
       const groups = database.getAllGroups();
       const items = database.getAllItems();
       const result = await importExport.exportData(groups, items);
-      
+
       if (result.success && result.path) {
         return { success: true, data: { path: result.path } };
       }
@@ -661,13 +667,13 @@ function setupIPC() {
   ipcMain.handle('data:import', async (): Promise<IPCResponse<{ groupsCount: number; itemsCount: number }>> => {
     try {
       const result = await importExport.importData();
-      
+
       if (!result.success || !result.data) {
         return { success: false, error: result.error };
       }
 
       const database = getDb();
-      
+
       // Import groups first (to get IDs)
       const groupIdMap = new Map<string, string>();
       for (const group of result.data.groups) {
@@ -706,12 +712,12 @@ function setupIPC() {
         itemsImported++;
       }
 
-      return { 
-        success: true, 
-        data: { 
+      return {
+        success: true,
+        data: {
           groupsCount: result.data.groups.length,
           itemsCount: itemsImported,
-        } 
+        }
       };
     } catch (error) {
       return { success: false, error: String(error) };
@@ -721,13 +727,13 @@ function setupIPC() {
   ipcMain.handle('data:importSyncFile', async (): Promise<IPCResponse<{ groupsCount: number; itemsCount: number }>> => {
     try {
       const result = await importExport.importSyncFile();
-      
+
       if (!result.success || !result.data) {
         return { success: false, error: result.error };
       }
 
       const database = getDb();
-      
+
       // Import groups first (to get IDs)
       const groupIdMap = new Map<string, string>();
       for (const group of result.data.groups) {
@@ -767,12 +773,12 @@ function setupIPC() {
       }
 
       triggerSync();
-      return { 
-        success: true, 
-        data: { 
+      return {
+        success: true,
+        data: {
           groupsCount: result.data.groups.length,
           itemsCount: itemsImported,
-        } 
+        }
       };
     } catch (error) {
       return { success: false, error: String(error) };
@@ -782,7 +788,7 @@ function setupIPC() {
   ipcMain.handle('data:importBrowserBookmarks', async (_, groupId: string): Promise<IPCResponse<{ count: number }>> => {
     try {
       const result = await importExport.importBrowserBookmarks();
-      
+
       if (!result.success || !result.items) {
         return { success: false, error: result.error };
       }
@@ -828,7 +834,7 @@ function setupIPC() {
       for (const bookmark of bookmarks) {
         try {
           const urlObj = new URL(bookmark.url);
-          
+
           // Skip non-http URLs
           if (!urlObj.protocol.startsWith('http')) continue;
 
@@ -890,12 +896,12 @@ function setupIPC() {
       const database = getDb();
       const salt = await encryption.setMasterPassword(password);
       const verificationData = encryption.createVerificationData(password, salt);
-      
+
       database.updateSettings({
         encryptionSalt: salt,
         encryptionVerification: verificationData,
       });
-      
+
       return { success: true, data: true };
     } catch (error) {
       return { success: false, error: String(error) };
@@ -906,22 +912,22 @@ function setupIPC() {
     try {
       const database = getDb();
       const settings = database.getSettings();
-      
+
       if (!settings.encryptionSalt || !settings.encryptionVerification) {
         return { success: false, error: 'Encryption not set up' };
       }
-      
+
       const isValid = await encryption.verifyPassword(
         password,
         settings.encryptionSalt,
         settings.encryptionVerification
       );
-      
+
       if (isValid) {
         await encryption.setMasterPassword(password, settings.encryptionSalt);
         return { success: true, data: true };
       }
-      
+
       return { success: false, error: 'Invalid password' };
     } catch (error) {
       return { success: false, error: String(error) };
@@ -941,33 +947,33 @@ function setupIPC() {
     try {
       const database = getDb();
       const settings = database.getSettings();
-      
+
       if (!settings.encryptionSalt || !settings.encryptionVerification) {
         return { success: false, error: 'Encryption not set up' };
       }
-      
+
       // Verify old password
       const isValid = await encryption.verifyPassword(
         oldPassword,
         settings.encryptionSalt,
         settings.encryptionVerification
       );
-      
+
       if (!isValid) {
         return { success: false, error: 'Invalid current password' };
       }
-      
+
       // Set up with new password
       const newSalt = await encryption.setMasterPassword(newPassword);
       const newVerificationData = encryption.createVerificationData(newPassword, newSalt);
-      
+
       // TODO: Re-encrypt all stored credentials with new key
-      
+
       database.updateSettings({
         encryptionSalt: newSalt,
         encryptionVerification: newVerificationData,
       });
-      
+
       return { success: true, data: true };
     } catch (error) {
       return { success: false, error: String(error) };
@@ -1095,7 +1101,7 @@ function setupIPC() {
     try {
       const database = getDb();
       const settings = database.getSettings();
-      
+
       if (!settings.syncEnabled || !settings.syncUrl || !settings.syncUsername || !settings.syncPassword) {
         return { success: false, error: 'Sync not configured' };
       }
@@ -1109,7 +1115,7 @@ function setupIPC() {
 
       const groups = database.getAllGroups();
       const items = database.getAllItems();
-      
+
       const result = await syncService.upload(
         settings.syncUrl,
         settings.syncUsername,
@@ -1123,15 +1129,15 @@ function setupIPC() {
         const lastSync = new Date().toISOString();
         database.updateSettings({ lastSync });
         // Notify renderer that sync completed
-        mainWindow?.webContents.send('sync:status', { 
-          syncing: false, 
+        mainWindow?.webContents.send('sync:status', {
+          syncing: false,
           success: true,
           lastSync
         });
       } else {
         // Notify renderer that sync failed
-        mainWindow?.webContents.send('sync:status', { 
-          syncing: false, 
+        mainWindow?.webContents.send('sync:status', {
+          syncing: false,
           success: false,
           error: result.error
         });
@@ -1140,8 +1146,8 @@ function setupIPC() {
       return { success: result.success, error: result.error };
     } catch (error: any) {
       // Notify renderer that sync failed
-      mainWindow?.webContents.send('sync:status', { 
-        syncing: false, 
+      mainWindow?.webContents.send('sync:status', {
+        syncing: false,
         success: false,
         error: error.message || 'Sync failed'
       });
@@ -1153,7 +1159,7 @@ function setupIPC() {
     try {
       const database = getDb();
       const settings = database.getSettings();
-      
+
       if (!settings.syncEnabled || !settings.syncUrl || !settings.syncUsername || !settings.syncPassword) {
         return { success: false, error: 'Sync not configured' };
       }
@@ -1185,7 +1191,7 @@ function setupIPC() {
     if (syncTimeout) {
       clearTimeout(syncTimeout);
     }
-    
+
     // Debounce: wait 2 seconds after last change before syncing
     syncTimeout = setTimeout(() => {
       try {
@@ -1193,7 +1199,7 @@ function setupIPC() {
         if (settings.syncEnabled && encryption.isUnlocked()) {
           // Notify renderer that sync is starting
           mainWindow?.webContents.send('sync:status', { syncing: true });
-          
+
           // Sync in background, don't wait for result
           syncService.upload(
             settings.syncUrl!,
@@ -1205,23 +1211,23 @@ function setupIPC() {
             if (result.success) {
               getDb().updateSettings({ lastSync: new Date().toISOString() });
               // Notify renderer that sync completed
-              mainWindow?.webContents.send('sync:status', { 
-                syncing: false, 
+              mainWindow?.webContents.send('sync:status', {
+                syncing: false,
                 success: true,
                 lastSync: new Date().toISOString()
               });
             } else {
               // Notify renderer that sync failed
-              mainWindow?.webContents.send('sync:status', { 
-                syncing: false, 
+              mainWindow?.webContents.send('sync:status', {
+                syncing: false,
                 success: false,
                 error: result.error
               });
             }
           }).catch((error) => {
             // Notify renderer that sync failed
-            mainWindow?.webContents.send('sync:status', { 
-              syncing: false, 
+            mainWindow?.webContents.send('sync:status', {
+              syncing: false,
               success: false,
               error: error.message
             });
@@ -1232,6 +1238,9 @@ function setupIPC() {
       }
     }, 2000); // 2 second debounce
   };
+  ipcMain.handle('quickSearch:hide', async () => {
+    quickSearchWindow?.hide();
+  });
 }
 
 // App lifecycle
@@ -1240,12 +1249,44 @@ app.whenReady().then(async () => {
   setupIPC();
   createWindow();
 
+  // Initialize QuickSearch Window
+  quickSearchWindow = new QuickSearchWindow(isDev);
+
+  // Register global hotkeys
+  registerGlobalHotkeys();
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
   });
 });
+
+function registerGlobalHotkeys() {
+  const settings = getDb().getSettings();
+  const hotkey = settings.globalSearchHotkey || (process.platform === 'darwin' ? 'Option+Space' : 'Alt+Space');
+
+  console.log(`[Hotkey] Attempting to register: ${hotkey}`);
+
+  try {
+    const success = globalShortcut.register(hotkey, () => {
+      console.log('[Hotkey] Triggered');
+      quickSearchWindow?.toggle();
+    });
+
+    if (success) {
+      console.log(`[Hotkey] Successfully registered: ${hotkey}`);
+    } else {
+      console.warn(`[Hotkey] Failed to register: ${hotkey}. Hotkey might be already in use.`);
+    }
+  } catch (error) {
+    console.error('[Hotkey] Error during registration:', error);
+  }
+}
+
+function unregisterGlobalHotkeys() {
+  globalShortcut.unregisterAll();
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
@@ -1254,6 +1295,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  unregisterGlobalHotkeys();
   if (db) {
     db.close();
   }

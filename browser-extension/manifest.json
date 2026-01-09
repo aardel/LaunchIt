@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Launchpad Quick Add",
+  "name": "LaunchIt Quick Add",
   "version": "1.0.0",
-  "description": "Quickly add bookmarks to Launchpad from your browser",
+  "description": "Quickly add bookmarks to LaunchIt from your browser",
   "permissions": [
     "activeTab",
     "storage"
@@ -25,12 +25,15 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"]
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ]
     }
   ],
   "background": {
     "service_worker": "background.js"
   }
 }
-

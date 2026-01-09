@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Globe,
@@ -14,7 +14,6 @@ import {
   CheckCircle,
   AlertCircle,
   AlertTriangle,
-  GripVertical,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import type { AnyItem, BookmarkItem, SSHItem, AppItem, PasswordItem, Group } from '@shared/types';
@@ -105,14 +104,14 @@ export function ListItem({
 
   const getHealthIcon = () => {
     if (!healthResult || item.type !== 'bookmark') return null;
-    
+
     switch (healthResult.status) {
       case 'healthy':
-        return <CheckCircle className="w-4 h-4 text-accent-success" title={`Healthy (${healthResult.responseTime}ms)`} />;
+        return <span title={`Healthy (${healthResult.responseTime}ms)`}><CheckCircle className="w-4 h-4 text-accent-success" /></span>;
       case 'warning':
-        return <AlertTriangle className="w-4 h-4 text-accent-warning" title={`Warning: HTTP ${healthResult.statusCode}`} />;
+        return <span title={`Warning: HTTP ${healthResult.statusCode}`}><AlertTriangle className="w-4 h-4 text-accent-warning" /></span>;
       case 'error':
-        return <AlertCircle className="w-4 h-4 text-accent-danger" title={healthResult.error || 'Error'} />;
+        return <span title={healthResult.error || 'Error'}><AlertCircle className="w-4 h-4 text-accent-danger" /></span>;
       default:
         return null;
     }
@@ -121,12 +120,30 @@ export function ListItem({
   const openMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setMenuState({ x: e.clientX, y: e.clientY });
+
+    const menuWidth = 176; // matches w-44
+    const menuHeight = 250; // approximate max height
+    const margin = 16;
+
+    let x = e.clientX;
+    let y = e.clientY;
+
+    // Check horizontal boundaries
+    if (x + menuWidth + margin > window.innerWidth) {
+      x = window.innerWidth - menuWidth - margin;
+    }
+
+    // Check vertical boundaries
+    if (y + menuHeight + margin > window.innerHeight) {
+      y = window.innerHeight - menuHeight - margin;
+    }
+
+    setMenuState({ x, y });
   };
 
   const renderMenu = () => {
     if (!menuState) return null;
-    
+
     return createPortal(
       <>
         <div
@@ -206,11 +223,10 @@ export function ListItem({
   return (
     <>
       <div
-        className={`flex items-center gap-4 px-4 py-3 rounded-lg border transition-all cursor-pointer group ${
-          isSelected
-            ? 'bg-accent-primary/10 border-accent-primary/50'
-            : 'bg-dark-800/50 border-dark-700/50 hover:bg-dark-800 hover:border-dark-600'
-        }`}
+        className={`flex items-center gap-4 px-4 py-3 rounded-lg border transition-all cursor-pointer group ${isSelected
+          ? 'bg-accent-primary/10 border-accent-primary/50'
+          : 'bg-dark-800/50 border-dark-700/50 hover:bg-dark-800 hover:border-dark-600'
+          }`}
         onClick={() => {
           if (isSelectionMode) {
             onSelect();
@@ -262,10 +278,10 @@ export function ListItem({
           <div className="flex items-center gap-2">
             <h3 className="font-medium text-dark-100 truncate">{item.name}</h3>
             {getHealthIcon()}
-            {((item.type === 'bookmark' || item.type === 'ssh') && 
+            {((item.type === 'bookmark' || item.type === 'ssh') &&
               (item as BookmarkItem | SSHItem).credentials) && (
-              <Key className="w-3.5 h-3.5 text-accent-warning" title="Has credentials" />
-            )}
+                <Key className="w-3.5 h-3.5 text-accent-warning" title="Has credentials" />
+              )}
           </div>
           <p className="text-sm text-dark-400 truncate font-mono">{getSubtitle()}</p>
         </div>

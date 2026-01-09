@@ -1,6 +1,6 @@
 # AI Features with Groq
 
-Launchpad now includes AI-powered features using Groq's free API (14,400 requests/day free tier).
+LaunchIt now includes AI-powered features using Groq's free API (14,400 requests/day free tier).
 
 ## Getting Started
 
@@ -12,9 +12,9 @@ Launchpad now includes AI-powered features using Groq's free API (14,400 request
 4. Click "Create API Key"
 5. Copy your API key
 
-### 2. Enable AI in Launchpad
+### 2. Enable AI in LaunchIt
 
-1. Open Launchpad Settings
+1. Open LaunchIt Settings
 2. Go to "AI Features" section
 3. Paste your Groq API key
 4. Toggle "Enable AI Features" ON

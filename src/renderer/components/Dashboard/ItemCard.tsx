@@ -36,36 +36,36 @@ const typeColors = {
 };
 
 export function ItemCard({ item, compact = false }: { item: AnyItem; compact?: boolean }) {
-  const { 
-    launchItem, 
-    openEditModal, 
-    deleteItem, 
-    activeProfile, 
-    favicons, 
-    createItem, 
-    healthCheckResults, 
+  const {
+    launchItem,
+    openEditModal,
+    deleteItem,
+    activeProfile,
+    favicons,
+    createItem,
+    healthCheckResults,
     checkItemHealth,
     isSelectionMode,
     selectedItemIds,
     toggleItemSelection,
   } = useStore();
-  
+
   const isSelected = selectedItemIds.has(item.id);
-  
+
   const healthResult = healthCheckResults[item.id];
-  
+
   const getHealthIcon = () => {
     if (!healthResult || item.type !== 'bookmark') return null;
-    
+
     switch (healthResult.status) {
       case 'healthy':
-        return <CheckCircle className="w-3.5 h-3.5 text-accent-success" title={`Healthy (${healthResult.responseTime}ms)`} />;
+        return <span title={`Healthy (${healthResult.responseTime}ms)`}><CheckCircle className="w-3.5 h-3.5 text-accent-success" /></span>;
       case 'warning':
-        return <AlertTriangle className="w-3.5 h-3.5 text-accent-warning" title={`Warning: HTTP ${healthResult.statusCode}`} />;
+        return <span title={`Warning: HTTP ${healthResult.statusCode}`}><AlertTriangle className="w-3.5 h-3.5 text-accent-warning" /></span>;
       case 'error':
-        return <AlertCircle className="w-3.5 h-3.5 text-accent-danger" title={healthResult.error || 'Error'} />;
+        return <span title={healthResult.error || 'Error'}><AlertCircle className="w-3.5 h-3.5 text-accent-danger" /></span>;
       default:
-        return <Circle className="w-3.5 h-3.5 text-dark-500" title="Not checked" />;
+        return <span title="Not checked"><Circle className="w-3.5 h-3.5 text-dark-500" /></span>;
     }
   };
   const [menuState, setMenuState] = useState<{ x: number; y: number } | null>(null);
@@ -197,13 +197,31 @@ export function ItemCard({ item, compact = false }: { item: AnyItem; compact?: b
   const openMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setMenuState({ x: e.clientX, y: e.clientY });
+
+    const menuWidth = 176; // matches w-44
+    const menuHeight = 300; // approximate max height
+    const margin = 16;
+
+    let x = e.clientX;
+    let y = e.clientY;
+
+    // Check horizontal boundaries
+    if (x + menuWidth + margin > window.innerWidth) {
+      x = window.innerWidth - menuWidth - margin;
+    }
+
+    // Check vertical boundaries
+    if (y + menuHeight + margin > window.innerHeight) {
+      y = window.innerHeight - menuHeight - margin;
+    }
+
+    setMenuState({ x, y });
   };
 
   // Render menu using Portal to escape overflow:hidden
   const renderMenu = () => {
     if (!menuState) return null;
-    
+
     return createPortal(
       <>
         <div
@@ -292,9 +310,8 @@ export function ItemCard({ item, compact = false }: { item: AnyItem; compact?: b
       <div
         ref={cardRef}
         onMouseMove={handleMouseMove}
-        className={`card-base ${compact ? 'p-3' : 'p-4'} cursor-pointer group relative ${
-          isSelectionMode && isSelected ? 'ring-2 ring-accent-primary' : ''
-        }`}
+        className={`card-base ${compact ? 'p-3' : 'p-4'} cursor-pointer group relative ${isSelectionMode && isSelected ? 'ring-2 ring-accent-primary' : ''
+          }`}
         style={
           {
             '--mouse-x': `${mousePos.x}%`,
@@ -306,7 +323,7 @@ export function ItemCard({ item, compact = false }: { item: AnyItem; compact?: b
         <div className="card-glow pointer-events-none" />
 
         {/* Menu Button - Positioned absolute */}
-        <div 
+        <div
           className={`absolute z-50 ${compact ? 'top-2 right-2' : 'top-3 right-3'}`}
           onClick={openMenu}
           onMouseDown={(e) => e.stopPropagation()}
@@ -324,11 +341,10 @@ export function ItemCard({ item, compact = false }: { item: AnyItem; compact?: b
                 e.stopPropagation();
                 toggleItemSelection(item.id);
               }}
-              className={`${compact ? 'w-5 h-5' : 'w-6 h-6'} rounded border-2 flex items-center justify-center transition-all ${
-                isSelected
-                  ? 'bg-accent-primary border-accent-primary text-white'
-                  : 'bg-dark-800 border-dark-600 hover:border-dark-500'
-              }`}
+              className={`${compact ? 'w-5 h-5' : 'w-6 h-6'} rounded border-2 flex items-center justify-center transition-all ${isSelected
+                ? 'bg-accent-primary border-accent-primary text-white'
+                : 'bg-dark-800 border-dark-600 hover:border-dark-500'
+                }`}
             >
               {isSelected && <Check className={compact ? 'w-3 h-3' : 'w-4 h-4'} />}
             </button>
@@ -336,7 +352,7 @@ export function ItemCard({ item, compact = false }: { item: AnyItem; compact?: b
         )}
 
         {/* Clickable Content Area */}
-        <div 
+        <div
           className="relative z-10"
           onClick={() => {
             if (isSelectionMode) {
@@ -394,10 +410,10 @@ export function ItemCard({ item, compact = false }: { item: AnyItem; compact?: b
             {getHealthIcon()}
 
             {/* Has credentials indicator */}
-            {((item.type === 'bookmark' || item.type === 'ssh') && 
+            {((item.type === 'bookmark' || item.type === 'ssh') &&
               (item as BookmarkItem | SSHItem).credentials) && (
-              <Key className={`${compact ? 'w-3 h-3' : 'w-3.5 h-3.5'} text-accent-warning`} title="Has credentials" />
-            )}
+                <span title="Has credentials"><Key className={`${compact ? 'w-3 h-3' : 'w-3.5 h-3.5'} text-accent-warning`} /></span>
+              )}
 
             {/* Access count - hide in compact mode */}
             {!compact && item.accessCount > 0 && (

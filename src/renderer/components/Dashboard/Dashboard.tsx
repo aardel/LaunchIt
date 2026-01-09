@@ -3,7 +3,7 @@ import { Plus, Play, LayoutGrid, Grid3x3, List, Sparkles, Loader2 } from 'lucide
 import { useStore } from '../../store/useStore';
 import { SortableGroupSection } from './SortableGroupSection';
 import { BatchOperationsBar } from './BatchOperationsBar';
-import type { Group, AnyItem, BookmarkItem, SSHItem, AppItem, PasswordItem } from '@shared/types';
+import type { AnyItem, BookmarkItem, SSHItem, AppItem, PasswordItem } from '@shared/types';
 
 export function Dashboard() {
   const {
@@ -17,7 +17,7 @@ export function Dashboard() {
   } = useStore();
 
   const cardViewMode = settings?.cardViewMode || 'normal';
-  
+
   // Semantic search state
   const [semanticResults, setSemanticResults] = useState<Set<string>>(new Set());
   const [isSemanticSearching, setIsSemanticSearching] = useState(false);
@@ -85,7 +85,7 @@ export function Dashboard() {
           bookmark.networkAddresses.vpn,
           bookmark.networkAddresses.custom
         ].filter(Boolean);
-        
+
         addresses.forEach(address => {
           const port = bookmark.port ? `:${bookmark.port}` : '';
           const path = bookmark.path || '';
@@ -143,7 +143,7 @@ export function Dashboard() {
           id: item.id,
           name: item.name,
           description: item.description,
-          url: item.type === 'bookmark' 
+          url: item.type === 'bookmark'
             ? `${(item as any).protocol}://${(item as any).networkAddresses?.local || ''}${(item as any).port ? `:${(item as any).port}` : ''}${(item as any).path || ''}`
             : undefined,
         }));
@@ -174,22 +174,22 @@ export function Dashboard() {
     // Filter by search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      
+
       // Always do text search for exact matches - search all fields including URLs
       const textMatches = items.filter((item) => {
         const searchableText = getSearchableText(item);
         return searchableText.includes(query);
       });
-      
+
       // If semantic search is available, filter semantic results to only include
       // items that have at least a partial text match (to reduce false positives)
       if (useSemanticSearch && semanticResults.size > 0) {
         const textMatchIds = new Set(textMatches.map(item => item.id));
-        
+
         const semanticMatches = items.filter(item => {
           // Skip items that are already in text matches
           if (textMatchIds.has(item.id)) return false;
-          
+
           if (!semanticResults.has(item.id)) return false;
           // Only include semantic matches that also have some text relevance
           const searchableText = getSearchableText(item);
@@ -199,7 +199,7 @@ export function Dashboard() {
           // At least one word should match
           return queryWords.some(word => searchableText.includes(word));
         });
-        
+
         // Combine: text matches first, then semantic matches
         // This ensures exact matches appear before semantic matches
         filtered = [...textMatches, ...semanticMatches];
@@ -243,62 +243,62 @@ export function Dashboard() {
 
       <div className="max-w-[1600px] mx-auto">
         {/* Header - Sticky */}
-        <div className="sticky top-0 z-10 bg-dark-900/95 backdrop-blur-sm border-b border-dark-800 px-6 pt-6 pb-4 mb-4 -mx-6">
+        <div className="sticky top-0 z-10 bg-dark-900/95 backdrop-blur-sm border-b border-dark-800 px-14 pt-6 pb-4 mb-4 -mx-6">
           <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-dark-100">
-              {selectedGroup ? selectedGroup.name : 'All Items'}
-            </h1>
-            <p className="text-dark-400 mt-1 flex items-center gap-2">
-              {searchQuery ? (
-                <>
-                  <span>Search results for "{searchQuery}"</span>
-                  {settings?.aiEnabled && searchQuery.length >= 4 && (
-                    <span className="flex items-center gap-1 text-xs text-accent-primary">
-                      {isSemanticSearching ? (
-                        <>
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                          AI searching...
-                        </>
-                      ) : useSemanticSearch ? (
-                        <>
-                          <Sparkles className="w-3 h-3" />
-                          AI search
-                        </>
-                      ) : null}
-                    </span>
-                  )}
-                </>
-              ) : selectedGroup ? (
-                `${filteredItems[selectedGroup.id]?.length || 0} items`
-              ) : (
-                `${items.length} items across ${groups.length} groups`
-              )}
-            </p>
-          </div>
+            <div>
+              <h1 className="text-2xl font-bold text-dark-100">
+                {selectedGroup ? selectedGroup.name : 'All Items'}
+              </h1>
+              <p className="text-dark-400 mt-1 flex items-center gap-2">
+                {searchQuery ? (
+                  <>
+                    <span>Search results for "{searchQuery}"</span>
+                    {settings?.aiEnabled && searchQuery.length >= 4 && (
+                      <span className="flex items-center gap-1 text-xs text-accent-primary">
+                        {isSemanticSearching ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            AI searching...
+                          </>
+                        ) : useSemanticSearch ? (
+                          <>
+                            <Sparkles className="w-3 h-3" />
+                            AI search
+                          </>
+                        ) : null}
+                      </span>
+                    )}
+                  </>
+                ) : selectedGroup ? (
+                  `${filteredItems[selectedGroup.id]?.length || 0} items`
+                ) : (
+                  `${items.length} items across ${groups.length} groups`
+                )}
+              </p>
+            </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={toggleViewMode}
-              className="btn-secondary"
-              title={getViewModeTitle()}
-            >
-              {getViewModeIcon()}
-            </button>
-            {selectedGroupId && (
+            <div className="flex items-center gap-3">
               <button
-                onClick={() => launchGroup(selectedGroupId)}
+                onClick={toggleViewMode}
                 className="btn-secondary"
+                title={getViewModeTitle()}
               >
-                <Play className="w-4 h-4" />
-                Open All
+                {getViewModeIcon()}
               </button>
-            )}
-            <button onClick={openAddModal} className="btn-primary">
-              <Plus className="w-4 h-4" />
-              Add Item
-            </button>
-          </div>
+              {selectedGroupId && (
+                <button
+                  onClick={() => launchGroup(selectedGroupId)}
+                  className="btn-secondary"
+                >
+                  <Play className="w-4 h-4" />
+                  Open All
+                </button>
+              )}
+              <button onClick={openAddModal} className="btn-primary">
+                <Plus className="w-4 h-4" />
+                Add Item
+              </button>
+            </div>
           </div>
         </div>
 
