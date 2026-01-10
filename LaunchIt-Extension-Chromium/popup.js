@@ -16,11 +16,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load groups
   await loadGroups();
 
+  // Check for duplicate
+  if (tab.url) {
+    await checkDuplicateUrl(tab.url);
+  }
+
   // Make status clickable to retry connection
   const statusDiv = document.getElementById('connectionStatus');
   statusDiv.addEventListener('click', async () => {
     await checkConnection();
     await loadGroups();
+  });
+
+  // Shortcuts
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      const submitBtn = document.getElementById('submitBtn');
+      if (!submitBtn.disabled) {
+        submitBtn.click();
+      }
+    }
   });
 
   // Magic Buttons
@@ -144,6 +159,25 @@ function setButtonLoading(btn, isLoading, originalText = '') {
   }
 }
 
+async function checkDuplicateUrl(url) {
+  try {
+    const response = await fetch(`${LAUNCHIT_SERVER}/api/bookmarks/check`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+
+    const result = await response.json();
+    if (result.success && result.exists) {
+      showStatus('⚠️ This URL is already in LaunchIt', 'error');
+      // Optional: Disable submit or change text?
+      // For now just warning is good.
+    }
+  } catch (error) {
+    console.warn('Duplicate check failed', error);
+  }
+}
+
 async function checkConnection() {
   const statusDiv = document.getElementById('connectionStatus');
   const statusIcon = document.getElementById('statusIcon');
@@ -257,6 +291,14 @@ document.getElementById('bookmarkForm').addEventListener('submit', async (e) => 
   const name = document.getElementById('name').value.trim();
   const url = document.getElementById('url').value.trim();
   const description = document.getElementById('description').value.trim();
+
+  // Shortcuts
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      document.getElementById('submitBtn').click();
+    }
+  });
+
   const tags = document.getElementById('tags').value.trim();
   const groupId = document.getElementById('group').value;
 

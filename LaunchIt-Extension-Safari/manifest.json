@@ -5,7 +5,9 @@
   "description": "Quickly add bookmarks to LaunchIt from your browser",
   "permissions": [
     "activeTab",
-    "storage"
+    "storage",
+    "contextMenus",
+    "notifications"
   ],
   "host_permissions": [
     "http://localhost/*"

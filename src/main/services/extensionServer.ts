@@ -78,6 +78,8 @@ export class ExtensionServer {
         await this.handleGenerateDescription(req, res);
       } else if (pathname === '/api/ai/suggest-tags' && req.method === 'POST') {
         await this.handleSuggestTags(req, res);
+      } else if (pathname === '/api/bookmarks/check' && req.method === 'POST') {
+        await this.handleCheckUrl(req, res);
       } else {
         res.writeHead(404, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Not found' }));
@@ -234,6 +236,28 @@ export class ExtensionServer {
       const result = await this.aiService!.suggestTags(title || '', url, description);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: true, data: result }));
+    });
+  }
+
+  private async handleCheckUrl(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    this.processBody(req, res, async (data) => {
+      const { url } = data;
+      if (!url || !this.db) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Missing URL' }));
+        return;
+      }
+
+      const items = this.db.getAllItems();
+      // Simple exact match check. Could be improved with normalization.
+      const existing = items.find(item => {
+        if (item.type === 'bookmark') return (item as any).url === url;
+        // Check network addresses for other types if strictly needed, but URL is main case
+        return false;
+      });
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, exists: !!existing, item: existing }));
     });
   }
 
