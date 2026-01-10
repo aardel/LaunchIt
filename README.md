@@ -307,7 +307,7 @@ browser-extension-safari/ # Safari extension
 - [x] Password manager
 - [x] Favicon support
 - [x] Bulk edit (Find & Replace)
-- [ ] Command palette (Cmd+K)
+- [x] Command palette (Cmd+K)
 - [ ] Favorites/starred items
 - [ ] Full tags UI
 - [ ] Item templates
