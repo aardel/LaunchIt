@@ -121,7 +121,7 @@ async function initializeServices() {
   browserBookmarks = new BrowserBookmarksService();
   launcher = new LauncherService(browserService, healthCheckService);
   syncService = new SyncService(encryption);
-  extensionServer = new ExtensionServer(db);
+  extensionServer = new ExtensionServer(db, aiService);
   backupService = new BackupService();
 
   // Initialize AI service

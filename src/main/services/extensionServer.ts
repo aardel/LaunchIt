@@ -3,14 +3,18 @@ import { URL } from 'url';
 import { DatabaseService } from './database';
 import type { CreateItemInput, AnyItem } from '../../shared/types';
 
+import { AIService } from './aiService';
+
 export class ExtensionServer {
   private server: ReturnType<typeof createServer> | null = null;
   private port: number = 5174;
   private db: DatabaseService | null = null;
+  private aiService: AIService | null = null;
   private onBookmarkAdded: ((item: AnyItem) => void) | null = null;
 
-  constructor(db: DatabaseService) {
+  constructor(db: DatabaseService, aiService: AIService) {
     this.db = db;
+    this.aiService = aiService;
   }
 
   setOnBookmarkAdded(callback: (item: AnyItem) => void): void {
@@ -68,6 +72,12 @@ export class ExtensionServer {
         await this.handleGetGroups(res);
       } else if (pathname === '/api/bookmarks' && req.method === 'POST') {
         await this.handleAddBookmark(req, res);
+      } else if (pathname === '/api/ai/suggest-group' && req.method === 'POST') {
+        await this.handleSuggestGroup(req, res);
+      } else if (pathname === '/api/ai/generate-description' && req.method === 'POST') {
+        await this.handleGenerateDescription(req, res);
+      } else if (pathname === '/api/ai/suggest-tags' && req.method === 'POST') {
+        await this.handleSuggestTags(req, res);
       } else {
         res.writeHead(404, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Not found' }));
@@ -164,6 +174,85 @@ export class ExtensionServer {
         console.error('Error processing bookmark:', error);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: String(error) }));
+      }
+    });
+  }
+
+  private async handleSuggestGroup(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    if (!this.aiService || !this.aiService.isEnabled()) {
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: 'AI service not enabled' }));
+      return;
+    }
+
+    this.processBody(req, res, async (data) => {
+      const { title, url, html } = data;
+      const result = await this.aiService!.categorizeItem(title || '', url, html); // sending html as description for now or context
+
+      // If we got a category name, try to find the group ID
+      let groupId = '';
+      if (result && this.db) {
+        const groups = this.db.getAllGroups();
+        // Try strict match first, then case-insensitive
+        const group = groups.find(g => g.name === result) ||
+          groups.find(g => g.name.toLowerCase() === result.toLowerCase());
+
+        if (group) {
+          groupId = group.id;
+        }
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, data: { groupName: result, groupId } }));
+    });
+  }
+
+  private async handleGenerateDescription(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    if (!this.aiService || !this.aiService.isEnabled()) {
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: 'AI service not enabled' }));
+      return;
+    }
+
+    this.processBody(req, res, async (data) => {
+      const { title, url } = data;
+      const result = await this.aiService!.generateDescription(title || '', url);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, data: result }));
+    });
+  }
+
+  private async handleSuggestTags(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    if (!this.aiService || !this.aiService.isEnabled()) {
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: 'AI service not enabled' }));
+      return;
+    }
+
+    this.processBody(req, res, async (data) => {
+      const { title, url, description } = data;
+      const result = await this.aiService!.suggestTags(title || '', url, description);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, data: result }));
+    });
+  }
+
+  private processBody(req: IncomingMessage, res: ServerResponse, callback: (data: any) => Promise<void>): void {
+    let body = '';
+    req.on('data', (chunk) => {
+      body += chunk.toString();
+    });
+
+    req.on('end', async () => {
+      try {
+        const data = JSON.parse(body);
+        await callback(data);
+      } catch (error) {
+        console.error('Extension server request processing error:', error);
+        if (!res.writableEnded) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: String(error) }));
+        }
       }
     });
   }

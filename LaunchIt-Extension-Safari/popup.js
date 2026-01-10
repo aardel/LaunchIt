@@ -22,7 +22,127 @@ document.addEventListener('DOMContentLoaded', async () => {
     await checkConnection();
     await loadGroups();
   });
+
+  // Magic Buttons
+  document.getElementById('magicGroup').addEventListener('click', suggestGroup);
+  document.getElementById('magicDesc').addEventListener('click', generateDescription);
+  document.getElementById('magicTags').addEventListener('click', suggestTags);
 });
+
+// AI Helper Functions
+async function suggestGroup() {
+  const btn = document.getElementById('magicGroup');
+  const span = btn.querySelector('span') || btn;
+  const originalText = span.textContent;
+
+  setButtonLoading(btn, true);
+
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+    // Get page HTML for better context (if possible)
+    let html = '';
+    try {
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => document.body.innerText.substring(0, 2000) // First 2000 chars of text
+      });
+      html = results[0].result;
+    } catch (e) {
+      console.warn('Could not get page text', e);
+    }
+
+    const response = await fetch(`${LAUNCHIT_SERVER}/api/ai/suggest-group`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: tab.title,
+        url: tab.url,
+        html
+      })
+    });
+
+    const result = await response.json();
+    if (result.success && result.data.groupId) {
+      document.getElementById('group').value = result.data.groupId;
+      showStatus(`Suggesting: ${result.data.groupName}`, 'success');
+    } else {
+      showStatus('No group suggestion found', 'error');
+    }
+  } catch (error) {
+    console.error('AI Error:', error);
+    showStatus('AI suggestion failed', 'error');
+  } finally {
+    setButtonLoading(btn, false, '✨');
+  }
+}
+
+async function generateDescription() {
+  const btn = document.getElementById('magicDesc');
+  setButtonLoading(btn, true);
+
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+    const response = await fetch(`${LAUNCHIT_SERVER}/api/ai/generate-description`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: tab.title, url: tab.url })
+    });
+
+    const result = await response.json();
+    if (result.success && result.data) {
+      document.getElementById('description').value = result.data;
+    } else {
+      showStatus('Could not generate description', 'error');
+    }
+  } catch (error) {
+    console.error('AI Error:', error);
+    showStatus('AI generation failed', 'error');
+  } finally {
+    setButtonLoading(btn, false, '✨');
+  }
+}
+
+async function suggestTags() {
+  const btn = document.getElementById('magicTags');
+  setButtonLoading(btn, true);
+
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const description = document.getElementById('description').value;
+
+    const response = await fetch(`${LAUNCHIT_SERVER}/api/ai/suggest-tags`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: tab.title, url: tab.url, description })
+    });
+
+    const result = await response.json();
+    if (result.success && result.data) {
+      const currentTags = document.getElementById('tags').value;
+      const newTags = result.data.join(', ');
+      document.getElementById('tags').value = currentTags ? `${currentTags}, ${newTags}` : newTags;
+    } else {
+      showStatus('No tags suggested', 'error');
+    }
+  } catch (error) {
+    console.error('AI Error:', error);
+    showStatus('AI suggestion failed', 'error');
+  } finally {
+    setButtonLoading(btn, false, '✨');
+  }
+}
+
+function setButtonLoading(btn, isLoading, originalText = '') {
+  if (isLoading) {
+    btn.disabled = true;
+    btn.innerHTML = '<div class="magic-spinner"></div>';
+  } else {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
 
 async function checkConnection() {
   const statusDiv = document.getElementById('connectionStatus');
