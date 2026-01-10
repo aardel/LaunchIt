@@ -41,7 +41,7 @@ Modern Safari requires extensions to be built as Safari App Extensions using Xco
 
 4. **Enable Extension:**
    - Go to Safari → Settings → Extensions
-   - Find "Launchpad Quick Add"
+   - Find "LaunchIt Quick Add"
    - Toggle it ON
    - Grant any required permissions
 
