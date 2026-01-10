@@ -127,6 +127,7 @@ export interface AppSettings {
   // AI Features
   aiEnabled: boolean;
   smartRoutingEnabled: boolean;
+  advancedMode: boolean; // Toggle for advanced features (Tailscale, VPN, etc)
   groqApiKey?: string; // Encrypted
   globalSearchHotkey: string;
   // Keyboard shortcuts

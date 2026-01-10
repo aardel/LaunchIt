@@ -13,6 +13,7 @@ export function EditItemModal() {
     closeEditModal,
     updateItem,
     isVaultLocked,
+    settings,
   } = useStore();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -441,48 +442,64 @@ export function EditItemModal() {
                   </p>
                 </div>
 
-                <div className="p-4 bg-dark-800/50 rounded-lg space-y-3">
-                  <div>
-                    <h4 className="text-sm font-medium text-dark-300 mb-1">Network Addresses</h4>
-                    <p className="text-xs text-dark-500 mb-3">
-                      Enter the hostname, domain, or IP address for each network profile
-                    </p>
+                {settings.advancedMode && (
+                  <div className="p-4 bg-dark-800/50 rounded-lg space-y-3">
+                    <div>
+                      <h4 className="text-sm font-medium text-dark-300 mb-1">Network Addresses</h4>
+                      <p className="text-xs text-dark-500 mb-3">
+                        Enter the hostname, domain, or IP address for each network profile
+                      </p>
+                    </div>
+                    <div>
+                      <label className="input-label text-xs">Default Address *</label>
+                      <input
+                        type="text"
+                        value={localAddress}
+                        onChange={(e) => setLocalAddress(e.target.value)}
+                        placeholder="example.com or 192.168.1.100"
+                        className="input-base text-sm"
+                        required
+                      />
+                      <p className="text-xs text-dark-500 mt-1">
+                        Used when no specific network profile is selected
+                      </p>
+                    </div>
+                    <div>
+                      <label className="input-label text-xs">Tailscale Address (Optional)</label>
+                      <input
+                        type="text"
+                        value={tailscaleAddress}
+                        onChange={(e) => setTailscaleAddress(e.target.value)}
+                        placeholder="myserver.tailnet.ts.net"
+                        className="input-base text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="input-label text-xs">VPN Address (Optional)</label>
+                      <input
+                        type="text"
+                        value={vpnAddress}
+                        onChange={(e) => setVpnAddress(e.target.value)}
+                        placeholder="10.0.0.100 or vpn.example.com"
+                        className="input-base text-sm"
+                      />
+                    </div>
                   </div>
+                )}
+
+                {!settings.advancedMode && (
                   <div>
-                    <label className="input-label text-xs">Default Address *</label>
+                    <label className="input-label">Address / URL *</label>
                     <input
                       type="text"
                       value={localAddress}
                       onChange={(e) => setLocalAddress(e.target.value)}
-                      placeholder="example.com or 192.168.1.100"
-                      className="input-base text-sm"
+                      placeholder="example.com"
+                      className="input-base"
                       required
                     />
-                    <p className="text-xs text-dark-500 mt-1">
-                      Used when no specific network profile is selected
-                    </p>
                   </div>
-                  <div>
-                    <label className="input-label text-xs">Tailscale Address (Optional)</label>
-                    <input
-                      type="text"
-                      value={tailscaleAddress}
-                      onChange={(e) => setTailscaleAddress(e.target.value)}
-                      placeholder="myserver.tailnet.ts.net"
-                      className="input-base text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="input-label text-xs">VPN Address (Optional)</label>
-                    <input
-                      type="text"
-                      value={vpnAddress}
-                      onChange={(e) => setVpnAddress(e.target.value)}
-                      placeholder="10.0.0.100 or vpn.example.com"
-                      className="input-base text-sm"
-                    />
-                  </div>
-                </div>
+                )}
 
                 {/* Credentials */}
                 <div className={`p-4 bg-dark-800/50 rounded-lg space-y-3 border ${clearExistingPassword ? 'border-accent-danger/20' : 'border-accent-warning/20'}`}>
@@ -592,39 +609,53 @@ export function EditItemModal() {
                   </div>
                 </div>
 
-                <div className="p-4 bg-dark-800/50 rounded-lg space-y-3">
-                  <h4 className="text-sm font-medium text-dark-300">Host Addresses</h4>
+                {settings.advancedMode ? (
+                  <div className="p-4 bg-dark-800/50 rounded-lg space-y-3">
+                    <h4 className="text-sm font-medium text-dark-300">Host Addresses</h4>
+                    <div>
+                      <label className="input-label text-xs">Local (LAN)</label>
+                      <input
+                        type="text"
+                        value={localAddress}
+                        onChange={(e) => setLocalAddress(e.target.value)}
+                        placeholder="192.168.1.100"
+                        className="input-base text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="input-label text-xs">Tailscale</label>
+                      <input
+                        type="text"
+                        value={tailscaleAddress}
+                        onChange={(e) => setTailscaleAddress(e.target.value)}
+                        placeholder="myserver.tailnet.ts.net"
+                        className="input-base text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="input-label text-xs">VPN</label>
+                      <input
+                        type="text"
+                        value={vpnAddress}
+                        onChange={(e) => setVpnAddress(e.target.value)}
+                        placeholder="10.0.0.100"
+                        className="input-base text-sm"
+                      />
+                    </div>
+                  </div>
+                ) : (
                   <div>
-                    <label className="input-label text-xs">Local (LAN)</label>
+                    <label className="input-label">Hostname / IP</label>
                     <input
                       type="text"
                       value={localAddress}
                       onChange={(e) => setLocalAddress(e.target.value)}
                       placeholder="192.168.1.100"
-                      className="input-base text-sm"
+                      className="input-base"
+                      required
                     />
                   </div>
-                  <div>
-                    <label className="input-label text-xs">Tailscale</label>
-                    <input
-                      type="text"
-                      value={tailscaleAddress}
-                      onChange={(e) => setTailscaleAddress(e.target.value)}
-                      placeholder="myserver.tailnet.ts.net"
-                      className="input-base text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="input-label text-xs">VPN</label>
-                    <input
-                      type="text"
-                      value={vpnAddress}
-                      onChange={(e) => setVpnAddress(e.target.value)}
-                      placeholder="10.0.0.100"
-                      className="input-base text-sm"
-                    />
-                  </div>
-                </div>
+                )}
 
                 {/* SSH Password */}
                 <div className={`p-4 bg-dark-800/50 rounded-lg space-y-3 border ${clearExistingPassword ? 'border-accent-danger/20' : 'border-accent-warning/20'}`}>

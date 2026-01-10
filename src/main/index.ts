@@ -1,5 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell, nativeTheme, globalShortcut } from 'electron';
 import path from 'path';
+import { autoUpdater } from 'electron-updater';
+import log from 'electron-log';
 import { QuickSearchWindow } from './windows/QuickSearchWindow';
 import { DatabaseService } from './services/database';
 import { TailscaleService } from './services/tailscale';
@@ -1697,6 +1699,75 @@ function setupIPC() {
 
   ipcMain.handle('quickSearch:hide', async () => {
     quickSearchWindow?.hide();
+  });
+
+  // ===== Auto Update =====
+  // Configure logging
+  log.transports.file.level = 'info';
+  autoUpdater.logger = log;
+
+  // Auto Updater Events
+  autoUpdater.on('checking-for-update', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update:status', { status: 'checking' });
+    }
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update:status', { status: 'available', info });
+    }
+  });
+
+  autoUpdater.on('update-not-available', (info) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update:status', { status: 'not-available', info });
+    }
+  });
+
+  autoUpdater.on('error', (err) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update:status', { status: 'error', error: err.message });
+    }
+  });
+
+  autoUpdater.on('download-progress', (progressObj) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update:status', {
+        status: 'downloading',
+        progress: progressObj
+      });
+    }
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update:status', { status: 'downloaded', info });
+    }
+  });
+
+  // Auto Updater IPC Handlers
+  ipcMain.handle('update:check', async () => {
+    try {
+      const result = await autoUpdater.checkForUpdates();
+      // In dev mode, result is null. Send a status update so UI doesn't hang.
+      if (result === null && !app.isPackaged) {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('update:status', {
+            status: 'not-available',
+            info: { version: 'Development Build' }
+          });
+        }
+      }
+      return result;
+    } catch (error) {
+      console.error('Failed to check for updates:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('update:quitAndInstall', () => {
+    autoUpdater.quitAndInstall();
   });
 }
 

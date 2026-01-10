@@ -218,6 +218,17 @@ const api = {
     stopMonitoring: (): Promise<IPCResponse<void>> =>
       ipcRenderer.invoke('dashboard:stopMonitoring'),
   },
+
+  // Auto Update
+  update: {
+    checkForUpdates: () => ipcRenderer.invoke('update:check'),
+    quitAndInstall: () => ipcRenderer.invoke('update:quitAndInstall'),
+    onStatusChange: (callback: (status: any) => void) => {
+      const subscription = (_: any, value: any) => callback(value);
+      ipcRenderer.on('update:status', subscription);
+      return () => ipcRenderer.removeListener('update:status', subscription);
+    },
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);

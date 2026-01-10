@@ -41,6 +41,94 @@ const SHORTCUTS = [
   { keys: [isMac ? '⌥' : 'Alt', 'Space'], description: 'Global Search (Quick Launcher)' },
 ];
 
+const UpdateChecker = () => {
+  const [status, setStatus] = useState<any>({ status: 'idle' });
+
+  useEffect(() => {
+    // Subscribe to update status
+    const unsubscribe = window.api.update.onStatusChange((newStatus: any) => {
+      console.log('Update Status:', newStatus);
+      setStatus(newStatus);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const checkUpdates = async () => {
+    setStatus({ status: 'checking' });
+    try {
+      await window.api.update.checkForUpdates();
+    } catch (err) {
+      console.error('Failed to check for updates:', err);
+      setStatus({ status: 'error', error: 'Failed to check' });
+    }
+  };
+
+  const installUpdate = () => {
+    window.api.update.quitAndInstall();
+  };
+
+  if (status.status === 'checking') {
+    return (
+      <button disabled className="btn-secondary text-xs px-3 py-1.5 opacity-70">
+        <RefreshCw className="w-3 h-3 animate-spin mr-2" />
+        Checking...
+      </button>
+    );
+  }
+
+  if (status.status === 'downloading') {
+    return (
+      <button disabled className="btn-secondary text-xs px-3 py-1.5">
+        <Download className="w-3 h-3 mr-2 animate-bounce" />
+        Downloading {Math.round(status.progress?.percent || 0)}%
+      </button>
+    );
+  }
+
+  if (status.status === 'downloaded') {
+    return (
+      <button onClick={installUpdate} className="btn-primary text-xs px-3 py-1.5 bg-accent-success hover:bg-accent-success/90">
+        <RefreshCw className="w-3 h-3 mr-2" />
+        Restart & Install
+      </button>
+    );
+  }
+
+  if (status.status === 'available') {
+    return (
+      <button disabled className="btn-secondary text-xs px-3 py-1.5">
+        <Download className="w-3 h-3 mr-2" />
+        Update Available
+      </button>
+    );
+  }
+
+  if (status.status === 'not-available') {
+    return (
+      <button onClick={checkUpdates} className="btn-secondary text-xs px-3 py-1.5 text-accent-success hover:text-accent-success/80">
+        <CheckCircle2 className="w-3 h-3 mr-2" />
+        Up to Date
+      </button>
+    );
+  }
+
+  if (status.status === 'error') {
+    return (
+      <button onClick={checkUpdates} className="btn-secondary text-xs px-3 py-1.5 text-accent-danger hover:text-accent-danger/80" title={status.error}>
+        <AlertCircle className="w-3 h-3 mr-2" />
+        Check Failed
+      </button>
+    );
+  }
+
+  return (
+    <button onClick={checkUpdates} className="btn-secondary text-xs px-3 py-1.5">
+      <RefreshCw className="w-3 h-3 mr-2" />
+      Check for Updates
+    </button>
+  );
+};
+
 export function SettingsModal() {
   const { isSettingsOpen, closeSettings, settings, tailscaleStatus, refreshTailscaleStatus, groups, loadData, fetchFavicons, isFetchingFavicons, faviconProgress, isVaultSetup, lockVault } = useStore();
 
@@ -373,7 +461,11 @@ export function SettingsModal() {
         <div className="flex flex-1 overflow-hidden">
           {/* Tab Sidebar */}
           <div className="w-44 bg-dark-850 border-r border-dark-800 py-2 flex-shrink-0">
-            {TABS.map((tab) => {
+            {TABS.filter(tab => {
+              if (tab.id === 'network' && !settings?.advancedMode) return false;
+              if (tab.id === 'terminal' && !settings?.advancedMode) return false;
+              return true;
+            }).map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
@@ -426,6 +518,31 @@ export function SettingsModal() {
                         </>
                       )}
                     </button>
+                  </div>
+                </div>
+
+                {/* Advanced Mode */}
+                <div>
+                  <h3 className="text-lg font-medium text-dark-100 mb-4">Experience</h3>
+                  <div className="p-4 bg-dark-800/50 rounded-xl">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Settings className="w-5 h-5 text-dark-400" />
+                        <div>
+                          <p className="text-sm font-medium text-dark-200">Advanced Mode</p>
+                          <p className="text-xs text-dark-500">Show advanced features like Tailscale, VPN, and complex network configurations</p>
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={settings?.advancedMode || false}
+                          onChange={(e) => updateSettings({ advancedMode: e.target.checked })}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-dark-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-primary"></div>
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1332,9 +1449,10 @@ export function SettingsModal() {
                   </div>
                   <h3 className="text-2xl font-bold gradient-text mb-2">LaunchIt</h3>
                   <p className="text-dark-400 mb-1">Version 1.1.0</p>
-                  <p className="text-sm text-dark-500">
+                  <p className="text-sm text-dark-500 mb-4">
                     A powerful bookmark and app launcher
                   </p>
+                  <UpdateChecker />
                 </div>
 
                 <div className="space-y-3 text-sm">

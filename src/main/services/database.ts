@@ -175,6 +175,7 @@ export class DatabaseService {
         launchAtStartup: false,
         cardViewMode: 'normal',
         aiEnabled: false,
+        advancedMode: false,
         smartRoutingEnabled: true, // Let's default it to true since it's a "killer" feature
         groqApiKey: undefined,
         globalSearchHotkey: process.platform === 'darwin' ? 'Option+Space' : 'Alt+Space',
