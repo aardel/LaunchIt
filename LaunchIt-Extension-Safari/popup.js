@@ -16,6 +16,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load groups
   await loadGroups();
 
+  // Check for duplicate
+  if (tab.url) {
+    await checkDuplicateUrl(tab.url);
+  }
+
   // Make status clickable to retry connection
   const statusDiv = document.getElementById('connectionStatus');
   statusDiv.addEventListener('click', async () => {
@@ -23,11 +28,103 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadGroups();
   });
 
+  // Shortcuts
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      const submitBtn = document.getElementById('submitBtn');
+      if (!submitBtn.disabled) {
+        submitBtn.click();
+      }
+    }
+  });
+
   // Magic Buttons
   document.getElementById('magicGroup').addEventListener('click', suggestGroup);
   document.getElementById('magicDesc').addEventListener('click', generateDescription);
   document.getElementById('magicTags').addEventListener('click', suggestTags);
+
+  // Tabs
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      // Remove active class from all
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+      // Add active to clicked
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.tab).classList.add('active');
+
+      // Load specific tab data
+      if (btn.dataset.tab === 'tab-info') {
+        loadStats();
+      } else if (btn.dataset.tab === 'tab-search') {
+        document.getElementById('searchInput').focus();
+      }
+    });
+  });
+
+  // Search
+  const searchInput = document.getElementById('searchInput');
+  let searchTimeout;
+  searchInput.addEventListener('input', (e) => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      performSearch(e.target.value);
+    }, 300);
+  });
 });
+
+async function performSearch(query) {
+  const container = document.getElementById('searchResults');
+  if (!query) {
+    container.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">Type to search...</div>';
+    return;
+  }
+
+  container.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">Searching...</div>';
+
+  try {
+    const response = await fetch(`${LAUNCHIT_SERVER}/api/search?q=${encodeURIComponent(query)}`);
+    const result = await response.json();
+
+    if (result.success && result.data && result.data.length > 0) {
+      container.innerHTML = result.data.map(item => `
+        <div class="search-item" onclick="openLink('${item.url}')">
+          <img src="${item.icon || 'icons/icon48.png'}" onerror="this.src='icons/icon48.png'">
+          <div class="search-item-info">
+            <div class="search-item-title">${item.name}</div>
+            <div class="search-item-url">${item.url || 'No URL'}</div>
+          </div>
+        </div>
+      `).join('');
+    } else {
+      container.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">No results found</div>';
+    }
+  } catch (error) {
+    container.innerHTML = '<div style="text-align: center; color: #ef4444; padding: 20px;">Search failed</div>';
+  }
+}
+
+function openLink(url) {
+  if (url) chrome.tabs.create({ url });
+}
+
+async function loadStats() {
+  const container = document.getElementById('vaultStats');
+  try {
+    const response = await fetch(`${LAUNCHIT_SERVER}/api/stats`);
+    const result = await response.json();
+    if (result.success) {
+      container.innerHTML = `
+        <div><strong>${result.data.itemsCount}</strong> Items</div>
+        <div><strong>${result.data.groupsCount}</strong> Groups</div>
+        <div style="margin-top: 5px; opacity: 0.7;">v${result.data.version}</div>
+      `;
+    }
+  } catch (error) {
+    container.innerHTML = 'Could not load stats';
+  }
+}
 
 // AI Helper Functions
 async function suggestGroup() {
@@ -144,6 +241,25 @@ function setButtonLoading(btn, isLoading, originalText = '') {
   }
 }
 
+async function checkDuplicateUrl(url) {
+  try {
+    const response = await fetch(`${LAUNCHIT_SERVER}/api/bookmarks/check`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+
+    const result = await response.json();
+    if (result.success && result.exists) {
+      showStatus('⚠️ This URL is already in LaunchIt', 'error');
+      // Optional: Disable submit or change text?
+      // For now just warning is good.
+    }
+  } catch (error) {
+    console.warn('Duplicate check failed', error);
+  }
+}
+
 async function checkConnection() {
   const statusDiv = document.getElementById('connectionStatus');
   const statusIcon = document.getElementById('statusIcon');
@@ -257,6 +373,14 @@ document.getElementById('bookmarkForm').addEventListener('submit', async (e) => 
   const name = document.getElementById('name').value.trim();
   const url = document.getElementById('url').value.trim();
   const description = document.getElementById('description').value.trim();
+
+  // Shortcuts
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      document.getElementById('submitBtn').click();
+    }
+  });
+
   const tags = document.getElementById('tags').value.trim();
   const groupId = document.getElementById('group').value;
 

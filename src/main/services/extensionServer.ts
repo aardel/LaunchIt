@@ -80,6 +80,10 @@ export class ExtensionServer {
         await this.handleSuggestTags(req, res);
       } else if (pathname === '/api/bookmarks/check' && req.method === 'POST') {
         await this.handleCheckUrl(req, res);
+      } else if (pathname.startsWith('/api/search') && req.method === 'GET') {
+        await this.handleSearch(req, res, searchParams);
+      } else if (pathname === '/api/stats' && req.method === 'GET') {
+        await this.handleGetStats(res);
       } else {
         res.writeHead(404, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Not found' }));
@@ -261,25 +265,78 @@ export class ExtensionServer {
     });
   }
 
-  private processBody(req: IncomingMessage, res: ServerResponse, callback: (data: any) => Promise<void>): void {
-    let body = '';
-    req.on('data', (chunk) => {
-      body += chunk.toString();
-    });
-
-    req.on('end', async () => {
-      try {
-        const data = JSON.parse(body);
-        await callback(data);
-      } catch (error) {
-        console.error('Extension server request processing error:', error);
-        if (!res.writableEnded) {
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ success: false, error: String(error) }));
-        }
-      }
-    });
+});
   }
+
+  private async handleSearch(req: IncomingMessage, res: ServerResponse, params: URLSearchParams): Promise < void> {
+  if(!this.db) {
+  res.writeHead(503, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ success: false, error: 'Database not initialized' }));
+  return;
+}
+
+const query = params.get('q');
+if (!query) {
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ success: true, data: [] }));
+  return;
+}
+
+// Limit extension search results to 20 for performance
+const results = this.db.searchItems(query).slice(0, 20);
+
+// Filter to return safe data
+const safeResults = results.map(item => ({
+  id: item.id,
+  name: item.name,
+  url: item.url,
+  icon: item.icon
+}));
+
+res.writeHead(200, { 'Content-Type': 'application/json' });
+res.end(JSON.stringify({ success: true, data: safeResults }));
+  }
+
+  private async handleGetStats(res: ServerResponse): Promise < void> {
+  if(!this.db) {
+  res.writeHead(503, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ success: false, error: 'Database not initialized' }));
+  return;
+}
+
+const items = this.db.getAllItems();
+const groups = this.db.getAllGroups();
+
+res.writeHead(200, { 'Content-Type': 'application/json' });
+res.end(JSON.stringify({
+  success: true,
+  data: {
+    itemsCount: items.length,
+    groupsCount: groups.length,
+    version: '1.1.0'
+  }
+}));
+  }
+
+  private processBody(req: IncomingMessage, res: ServerResponse, callback: (data: any) => Promise<void>): void {
+  let body = '';
+  req.on('data', (chunk) => {
+    body += chunk.toString();
+  });
+
+  req.on('end', async () => {
+    try {
+      const data = JSON.parse(body);
+      await callback(data);
+    } catch (error) {
+      console.error('Extension server request processing error:', error);
+      if (!res.writableEnded) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: String(error) }));
+      }
+    }
+  });
+}
 }
 
 
