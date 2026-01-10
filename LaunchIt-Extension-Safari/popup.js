@@ -137,6 +137,7 @@ document.getElementById('bookmarkForm').addEventListener('submit', async (e) => 
   const name = document.getElementById('name').value.trim();
   const url = document.getElementById('url').value.trim();
   const description = document.getElementById('description').value.trim();
+  const tags = document.getElementById('tags').value.trim();
   const groupId = document.getElementById('group').value;
 
   if (!name || !url || !groupId) {
@@ -168,6 +169,7 @@ document.getElementById('bookmarkForm').addEventListener('submit', async (e) => 
         name,
         url,
         description: description || undefined,
+        tags: tags || undefined,
         groupId,
       }),
     });
@@ -186,6 +188,7 @@ document.getElementById('bookmarkForm').addEventListener('submit', async (e) => 
       document.getElementById('name').value = '';
       document.getElementById('url').value = '';
       document.getElementById('description').value = '';
+      document.getElementById('tags').value = '';
 
       // Close popup after 1.5 seconds
       setTimeout(() => {

@@ -106,12 +106,20 @@ export class ExtensionServer {
     req.on('end', () => {
       try {
         const data = JSON.parse(body);
-        const { name, url, description, groupId } = data;
+        const { name, url, description, groupId, tags } = data;
 
         if (!name || !url || !groupId) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ success: false, error: 'Missing required fields' }));
           return;
+        }
+
+        // Parse tags
+        let tagList: string[] = [];
+        if (Array.isArray(tags)) {
+          tagList = tags;
+        } else if (typeof tags === 'string') {
+          tagList = tags.split(',').map(t => t.trim()).filter(t => t.length > 0);
         }
 
         // Parse URL to extract protocol, hostname, port, path
@@ -134,6 +142,7 @@ export class ExtensionServer {
           name,
           description,
           groupId,
+          tags: tagList,
           protocol,
           port,
           path,
