@@ -10,7 +10,7 @@ Browser extension for quickly adding bookmarks to LaunchIt from your browser.
 2. Go to `chrome://extensions/` (or `edge://extensions/` for Edge)
 3. Enable "Developer mode" (toggle in top right)
 4. Click "Load unpacked"
-5. Select the `browser-extension` folder
+5. Select the `LaunchIt-Extension-Chromium` folder
 
 ### Firefox
 
@@ -18,7 +18,7 @@ Browser extension for quickly adding bookmarks to LaunchIt from your browser.
 2. Go to `about:debugging`
 3. Click "This Firefox"
 4. Click "Load Temporary Add-on"
-5. Select the `manifest.json` file in the `browser-extension` folder
+5. Select the `manifest.json` file in the `LaunchIt-Extension-Chromium` folder
 
 ## Usage
 

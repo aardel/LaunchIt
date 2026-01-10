@@ -136,15 +136,16 @@ Switch profiles using the dropdown in the title bar. All items will use the corr
 1. Go to `chrome://extensions/`
 2. Enable "Developer mode"
 3. Click "Load unpacked"
-4. Select the `browser-extension` folder
+3. Click "Load unpacked"
+4. Select the `LaunchIt-Extension-Chromium` folder
 
 **Firefox:**
 1. Go to `about:debugging`
 2. Click "Load Temporary Add-on"
-3. Select `browser-extension/manifest.json`
+3. Select `LaunchIt-Extension-Chromium/manifest.json`
 
 **Safari:**
-See `browser-extension-safari/README.md` for installation instructions.
+See `LaunchIt-Extension-Safari/README.md` for installation instructions.
 
 Once installed, click the extension icon while browsing to quickly add bookmarks to LaunchIt.
 
