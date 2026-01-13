@@ -1804,10 +1804,10 @@ function setupIPC() {
   });
 
   // ===== Sync =====
-  ipcMain.handle('sync:testConnection', async (_, url: string, username: string, password: string): Promise<IPCResponse<boolean>> => {
+  ipcMain.handle('sync:testConnection', async (_, url: string, username: string, password: string): Promise<any> => {
     try {
       const result = await syncService.testConnection(url, username, password);
-      return { success: result.success, error: result.error };
+      return { success: result.success, error: result.error, fileFound: result.fileFound };
     } catch (error) {
       return { success: false, error: String(error) };
     }

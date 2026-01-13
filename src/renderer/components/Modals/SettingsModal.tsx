@@ -1429,19 +1429,27 @@ export function SettingsModal() {
                                   setSyncStatus('Please enter a password');
                                   return;
                                 }
+
                                 if (!passwordToTest && hasSavedPassword && settings?.syncPassword) {
                                   const decryptRes = await window.api.encryption.decrypt(settings.syncPassword);
                                   if (decryptRes.success) passwordToTest = decryptRes.data;
                                   else return;
                                 }
+
                                 const testRes = await window.api.sync.testConnection(syncUrl, syncUsername, passwordToTest);
                                 if (testRes.success) {
                                   const updateData: any = { syncEnabled: true, syncUrl, syncUsername };
                                   if (syncPassword) updateData.syncPassword = passwordToSave;
                                   await window.api.settings.update(updateData);
+
                                   setHasSavedPassword(true);
                                   setSyncPassword('');
-                                  setSyncStatus('Connection successful! Settings saved.');
+
+                                  if (testRes.fileFound) {
+                                    setSyncStatus('Connection successful! Found existing sync data.');
+                                  } else {
+                                    setSyncStatus('Connection successful! Ready to sync (no data found).');
+                                  }
                                 } else {
                                   setSyncStatus(`Error: ${testRes.error || 'Connection failed'} `);
                                 }
@@ -1489,6 +1497,20 @@ export function SettingsModal() {
                             Sync Now
                           </button>
                         </div>
+
+                        {/* Status Messages for Sync */}
+                        {(syncStatus) && (
+                          <div className={`p-3 rounded-lg text-sm flex items-center gap-2 animate-in fade-in slide-in-from-top-1 ${(syncStatus?.includes('failed') || syncStatus?.includes('Error') || syncStatus?.includes('Please'))
+                            ? 'bg-accent-danger/10 text-accent-danger'
+                            : 'bg-accent-success/10 text-accent-success'
+                            }`}>
+                            {(syncStatus?.includes('failed') || syncStatus?.includes('Error') || syncStatus?.includes('Please'))
+                              ? <AlertCircle className="w-4 h-4" />
+                              : <Check className="w-4 h-4" />
+                            }
+                            {syncStatus}
+                          </div>
+                        )}
 
                         {/* Manual Sync Import */}
                         <div className="pt-2 border-t border-dark-700/50">
@@ -1564,19 +1586,6 @@ export function SettingsModal() {
                   </div>
                 </div>
 
-                {/* Status Messages */}
-                {(exportStatus || importStatus || syncStatus) && (
-                  <div className={`p-3 rounded-lg text-sm flex items-center gap-2 ${(exportStatus?.includes('failed') || importStatus?.includes('failed') || syncStatus?.includes('failed') || syncStatus?.includes('Error'))
-                    ? 'bg-accent-danger/10 text-accent-danger'
-                    : 'bg-accent-success/10 text-accent-success'
-                    }`}>
-                    {(exportStatus?.includes('failed') || importStatus?.includes('failed') || syncStatus?.includes('failed') || syncStatus?.includes('Error'))
-                      ? <AlertCircle className="w-4 h-4" />
-                      : <Check className="w-4 h-4" />
-                    }
-                    {exportStatus || importStatus || syncStatus}
-                  </div>
-                )}
 
 
                 {/* 2. JSON Backup & Restore (Local) */}
@@ -1601,6 +1610,20 @@ export function SettingsModal() {
                         </div>
                       </button>
                     </div>
+
+                    {/* Status Messages for Import/Export */}
+                    {(exportStatus || importStatus) && (
+                      <div className={`p-3 rounded-lg text-sm flex items-center gap-2 ${(exportStatus?.includes('failed') || importStatus?.includes('failed'))
+                        ? 'bg-accent-danger/10 text-accent-danger'
+                        : 'bg-accent-success/10 text-accent-success'
+                        }`}>
+                        {(exportStatus?.includes('failed') || importStatus?.includes('failed'))
+                          ? <AlertCircle className="w-4 h-4" />
+                          : <Check className="w-4 h-4" />
+                        }
+                        {exportStatus || importStatus}
+                      </div>
+                    )}
 
                     {/* Auto Backup Settings */}
                     <div className="pt-4 border-t border-dark-700/50">

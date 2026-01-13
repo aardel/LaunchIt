@@ -460,6 +460,7 @@ export function TitleBar() {
             <span className="text-xs font-medium">Cmds</span>
           </button>
 
+
           {/* Settings */}
           <button
             onClick={openSettings}
@@ -472,6 +473,6 @@ export function TitleBar() {
           </button>
         </div>
       </div>
-    </header>
+    </header >
   );
 }

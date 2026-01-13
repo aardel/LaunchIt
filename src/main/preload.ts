@@ -187,7 +187,7 @@ const api = {
 
   // Sync
   sync: {
-    testConnection: (url: string, username: string, password: string): Promise<IPCResponse<boolean>> =>
+    testConnection: (url: string, username: string, password: string): Promise<IPCResponse<{ success: boolean; error?: string; fileFound?: boolean }>> =>
       ipcRenderer.invoke('sync:testConnection', url, username, password),
     upload: (): Promise<IPCResponse<void>> =>
       ipcRenderer.invoke('sync:upload'),

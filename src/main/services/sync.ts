@@ -31,12 +31,13 @@ export class SyncService {
     url: string,
     username: string,
     password: string
-  ): Promise<{ success: boolean; error?: string }> {
+  ): Promise<{ success: boolean; error?: string; fileFound?: boolean }> {
     try {
       const testUrl = this.normalizeUrl(url);
       const auth = Buffer.from(`${username}:${password}`).toString('base64');
 
-      return new Promise((resolve) => {
+      // Step 1: Check basic connection
+      const connectionResult = await new Promise<{ success: boolean; error?: string }>((resolve) => {
         const request = net.request({
           method: 'PROPFIND',
           url: testUrl,
@@ -53,6 +54,11 @@ export class SyncService {
 
         request.on('response', (response) => {
           clearTimeout(timeout);
+          console.log('[Sync] Connection test response:', {
+            statusCode: response.statusCode,
+            url: testUrl
+          });
+
           if (response.statusCode >= 200 && response.statusCode < 300) {
             resolve({ success: true });
           } else if (response.statusCode === 401) {
@@ -69,6 +75,47 @@ export class SyncService {
 
         request.end();
       });
+
+      if (!connectionResult.success) {
+        return connectionResult;
+      }
+
+      // Step 2: Check for existing file
+      const fileUrl = this.normalizeUrl(url, this.syncFile);
+      const fileResult = await new Promise<{ found: boolean }>((resolve) => {
+        const request = net.request({
+          method: 'HEAD',
+          url: fileUrl,
+          headers: {
+            'Authorization': `Basic ${auth}`,
+          },
+        });
+
+        const timeout = setTimeout(() => {
+          request.abort();
+          resolve({ found: false });
+        }, 5000);
+
+        request.on('response', (response) => {
+          clearTimeout(timeout);
+
+          if (response.statusCode === 200) {
+            resolve({ found: true });
+          } else {
+            resolve({ found: false });
+          }
+        });
+
+        request.on('error', () => {
+          clearTimeout(timeout);
+          resolve({ found: false });
+        });
+
+        request.end();
+      });
+
+      return { success: true, fileFound: fileResult.found };
+
     } catch (error: any) {
       return { success: false, error: error.message || 'Connection failed' };
     }
