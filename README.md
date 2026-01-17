@@ -31,9 +31,10 @@ Switch between different network contexts seamlessly:
 - **Auto Tailscale Detection** - Automatically detects Tailscale connection status
 - **Port Preservation** - Maintains port numbers across network profiles
 - **Health Check** - Monitor bookmark availability and response times
-- **Favicon Support** - Automatic favicon fetching and caching
+- **Favicon Support** - Automatic favicon fetching and caching (HTTP/HTTPS URLs only)
 - **Automatic Backup** - Auto-backup before major changes (delete, update, batch operations)
 - **Undo Functionality** - One-click undo to restore previous state
+- **Type Selection Modal** - Intuitive type selection screen when adding new items
 
 ### 🌐 Browser Integration
 - **Browser Extensions** - Quick-add bookmarks from Chrome, Firefox, Edge, Brave, Arc, and Safari
@@ -50,6 +51,8 @@ Switch between different network contexts seamlessly:
 
 ### 🖥️ Desktop Integration
 - **Menu Bar Tray** - "LaunchIt" tray icon (🔖) for quick access to groups and bookmarks without opening the main window
+- **Running Apps Detection** - View and add currently running applications to favorites directly from the tray menu
+- **Quick Add from Tray** - Add running programs to favorites with one click from the menu bar
 - **Global Shortcuts** - Launch items and toggle visibility with keyboard shortcuts
 
 ### 🔄 Sync & Backup

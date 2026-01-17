@@ -34,12 +34,30 @@ interface AddItemModalProps {
 }
 
 export function AddItemModal({ isOpen, onClose, initialData }: AddItemModalProps = {}) {
-  const { isAddModalOpen, closeAddModal, createItem, groups, selectedGroupId, items, settings } = useStore();
+  const { isAddModalOpen, closeAddModal, createItem, groups, selectedGroupId, items, settings, addModalInitialData } = useStore();
+  
+  // Debug: log store state
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[AddItemModal] Render:', { isAddModalOpen, addModalInitialData, initialData });
+  }
 
   // Determine effective state (props override store)
   const showModal = isOpen !== undefined ? isOpen : isAddModalOpen;
   const handleClose = onClose || closeAddModal;
+  // Use initialData from props first, then from store
+  // Only use if it has meaningful data (type or appPath) to skip type selection
+  // IMPORTANT: Only use store data if it has type or appPath - otherwise ignore it
+  let effectiveInitialData: typeof initialData = undefined;
+  if (initialData && (initialData.type || initialData.appPath)) {
+    effectiveInitialData = initialData;
+  } else if (addModalInitialData && (addModalInitialData.type || addModalInitialData.appPath)) {
+    effectiveInitialData = addModalInitialData;
+  } else {
+    // Explicitly set to undefined to ensure no stale data
+    effectiveInitialData = undefined;
+  }
 
+  // Always start with type selection - will be overridden by useEffect if we have initial data
   const [step, setStep] = useState<'type' | 'form'>('type');
   const [selectedType, setSelectedType] = useState<ItemType>('bookmark');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -88,42 +106,62 @@ export function AddItemModal({ isOpen, onClose, initialData }: AddItemModalProps
   // Reset form when modal opens
   useEffect(() => {
     if (showModal) {
-      if (initialData) {
-        // Initialize from props
+      // Check if we have meaningful initial data that should skip type selection
+      // ONLY skip type selection if we have explicit type OR appPath (from tray)
+      // This ensures normal "Add Item" button ALWAYS shows type selection first
+      const shouldSkipTypeSelection = effectiveInitialData && (
+        effectiveInitialData.type || 
+        effectiveInitialData.appPath
+      );
+      
+      console.log('[AddItemModal] Modal opened:', {
+        showModal,
+        hasEffectiveInitialData: !!effectiveInitialData,
+        shouldSkipTypeSelection,
+        effectiveInitialData,
+        addModalInitialData,
+        initialData
+      });
+      
+      if (shouldSkipTypeSelection && effectiveInitialData) {
+        // We have initial data from tray (appPath) or explicit type - skip to form
+        // We have meaningful initial data (from tray or explicit), go directly to form
         setStep('form');
-        setSelectedType(initialData.type || 'bookmark');
-        setName(initialData.name || '');
-        setDescription(initialData.description || '');
-        setTags(initialData.tags || []);
-        setGroupId(initialData.groupId || selectedGroupId || groups[0]?.id || '');
-        setIcon(initialData.icon || '');
-        setColor(initialData.color || '#6366f1');
+        // Determine type: if explicitly set, use it; if appPath is set, it's an app; otherwise default to bookmark
+        const inferredType = effectiveInitialData.type || (effectiveInitialData.appPath ? 'app' : 'bookmark');
+        setSelectedType(inferredType);
+        setName(effectiveInitialData.name || '');
+        setDescription(effectiveInitialData.description || '');
+        setTags(effectiveInitialData.tags || []);
+        setGroupId(effectiveInitialData.groupId || selectedGroupId || groups[0]?.id || '');
+        setIcon(effectiveInitialData.icon || '');
+        setColor(effectiveInitialData.color || '#6366f1');
 
         // Protocol & Path
-        setProtocol(initialData.protocol || 'https');
-        setPath(initialData.path || '');
+        setProtocol(effectiveInitialData.protocol || 'https');
+        setPath(effectiveInitialData.path || '');
 
         // Addresses
-        if (initialData.networkAddresses) {
-          setLocalAddress(initialData.networkAddresses.local || '');
-          setTailscaleAddress(initialData.networkAddresses.tailscale || '');
-          setVpnAddress(initialData.networkAddresses.vpn || '');
-        } else if (initialData.path && initialData.path.includes('.local')) {
+        if (effectiveInitialData.networkAddresses) {
+          setLocalAddress(effectiveInitialData.networkAddresses.local || '');
+          setTailscaleAddress(effectiveInitialData.networkAddresses.tailscale || '');
+          setVpnAddress(effectiveInitialData.networkAddresses.vpn || '');
+        } else if (effectiveInitialData.path && effectiveInitialData.path.includes('.local')) {
           // Heuristic for network shares passed as path/hostname in initialData
           // If we passed the hostname in 'path' prop for convenience
-          setLocalAddress(initialData.path);
+          setLocalAddress(effectiveInitialData.path);
           setPath(''); // Clear path since we used it for address
         }
 
         // Port
-        if (initialData.port) setPort(initialData.port.toString());
+        if (effectiveInitialData.port) setPort(effectiveInitialData.port.toString());
 
         // Other fields
-        setUsername(initialData.username || 'root');
-        setAppPath(initialData.appPath || '');
-
+        setUsername(effectiveInitialData.username || 'root');
+        setAppPath(effectiveInitialData.appPath || '');
       } else {
-        // Default Reset
+        // No initial data - ALWAYS show type selection screen first
+        // This is the normal flow when clicking "Add Item" button
         setStep('type');
         setSelectedType('bookmark');
         setName('');
@@ -149,8 +187,12 @@ export function AddItemModal({ isOpen, onClose, initialData }: AddItemModalProps
         setPasswordUrl('');
         setPasswordNotes('');
       }
+    } else {
+      // Modal is closed - reset state to ensure clean start next time
+      setStep('type');
+      setSelectedType('bookmark');
     }
-  }, [showModal, selectedGroupId, groups, initialData]);
+  }, [showModal, selectedGroupId, groups, effectiveInitialData]);
 
   const handleSelectType = (type: ItemType) => {
     setSelectedType(type);
@@ -271,7 +313,8 @@ export function AddItemModal({ isOpen, onClose, initialData }: AddItemModalProps
       }
 
       await createItem(input);
-      handleClose();
+      // Clear initial data after successful creation
+      closeAddModal(); // This already clears addModalInitialData
     } catch (error) {
       console.error('Failed to create item:', error);
     } finally {
@@ -305,7 +348,7 @@ export function AddItemModal({ isOpen, onClose, initialData }: AddItemModalProps
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-dark-800">
           <h2 className="text-xl font-semibold text-dark-100">
-            {step === 'type' ? 'Add New Item' : `New ${itemTypes.find(t => t.id === selectedType)?.label}`}
+            {step === 'type' ? 'Add New Item' : `New ${itemTypes.find(t => t.id === selectedType)?.label || 'Item'}`}
           </h2>
           <button
             onClick={handleClose}

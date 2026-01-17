@@ -18,6 +18,7 @@ import { ExtensionServer } from './services/extensionServer';
 import { AIService } from './services/aiService';
 import { BackupService } from './services/backupService';
 import { TrayService } from './services/tray';
+import { RunningAppsService, RunningApp } from './services/runningApps';
 import {
   AnyItem,
   Group,
@@ -146,8 +147,24 @@ async function initializeServices() {
 
   trayService = new TrayService(launcher, () => mainWindow);
 
+  // Set callback for adding running apps from tray
+  trayService.setOnAddRunningApp(async (runningApp: RunningApp) => {
+    // Show window and open add item modal with app pre-filled
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      mainWindow.focus();
+      // Send event to renderer to open add modal with app data
+      mainWindow.webContents.send('tray:addRunningApp', {
+        name: runningApp.name,
+        appPath: runningApp.path,
+      });
+    }
+  });
+
   // Initial tray update
-  trayService.updateMenu(db.getAllGroups(), db.getAllItems());
+  trayService.updateMenu(db.getAllGroups(), db.getAllItems()).catch(err => {
+    console.error('Error updating tray menu:', err);
+  });
 
   // Set callback for when bookmarks are added via extension
   extensionServer.setOnBookmarkAdded((item) => {
@@ -213,7 +230,9 @@ function setupIPC() {
       try {
         // Update tray
         if (trayService && db) {
-          trayService.updateMenu(db.getAllGroups(), db.getAllItems());
+          trayService.updateMenu(db.getAllGroups(), db.getAllItems()).catch(err => {
+            console.error('Error updating tray menu:', err);
+          });
         }
 
         const settings = getDb().getSettings();
@@ -830,6 +849,16 @@ function setupIPC() {
     }
 
     return { success: true, data: result.filePaths[0] };
+  });
+
+  ipcMain.handle('system:getRunningApps', async (): Promise<IPCResponse<RunningApp[]>> => {
+    try {
+      const runningAppsService = new RunningAppsService();
+      const apps = await runningAppsService.getRunningApps();
+      return { success: true, data: apps };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
   });
 
   ipcMain.handle('system:getDetectedTerminals', async () => {

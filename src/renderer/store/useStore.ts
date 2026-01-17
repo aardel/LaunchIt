@@ -72,6 +72,11 @@ interface AppState {
 
   // Modal state
   isAddModalOpen: boolean;
+  addModalInitialData?: Partial<CreateItemInput> & {
+    protocol?: Protocol;
+    path?: string;
+    appPath?: string;
+  };
   isEditModalOpen: boolean;
   editingItem: AnyItem | null;
   isGroupModalOpen: boolean;
@@ -141,7 +146,7 @@ interface AppState {
   batchReplaceAddress: (itemIds: string[], searchText: string, replacementText: string, profile: string, useRegex?: boolean) => Promise<void>;
 
   // Modal actions
-  openAddModal: () => void;
+  openAddModal: (initialData?: Partial<CreateItemInput> & { protocol?: Protocol; path?: string; appPath?: string }) => void;
   closeAddModal: () => void;
   openEditModal: (item: AnyItem) => void;
   closeEditModal: () => void;
@@ -217,6 +222,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   // Modal state
   isAddModalOpen: false,
+  addModalInitialData: undefined,
   isEditModalOpen: false,
   editingItem: null,
   isGroupModalOpen: false,
@@ -861,8 +867,18 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   // Modal actions
-  openAddModal: () => set({ isAddModalOpen: true }),
-  closeAddModal: () => set({ isAddModalOpen: false }),
+  openAddModal: (initialData?: any) => {
+    // Always explicitly clear initial data first, then set it if provided
+    // This ensures type selection screen shows when opening normally
+    console.log('[Store] openAddModal called:', { initialData, hasType: initialData?.type, hasAppPath: initialData?.appPath });
+    if (initialData && (initialData.type || initialData.appPath)) {
+      set({ isAddModalOpen: true, addModalInitialData: initialData });
+    } else {
+      // No initial data or invalid - explicitly clear it to show type selection
+      set({ isAddModalOpen: true, addModalInitialData: undefined });
+    }
+  },
+  closeAddModal: () => set({ isAddModalOpen: false, addModalInitialData: undefined }),
   openEditModal: (item) => set({ isEditModalOpen: true, editingItem: item }),
   closeEditModal: () => set({ isEditModalOpen: false, editingItem: null }),
   openGroupModal: (group) => set({ isGroupModalOpen: true, editingGroup: group }),

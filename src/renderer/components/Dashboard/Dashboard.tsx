@@ -316,7 +316,7 @@ export function Dashboard() {
                   Open All
                 </button>
               )}
-              <button onClick={openAddModal} className="btn-primary">
+              <button onClick={() => openAddModal()} className="btn-primary">
                 <Plus className="w-4 h-4" />
                 Add Item
               </button>
@@ -341,7 +341,7 @@ export function Dashboard() {
           {displayGroups.length === 0 ? (
             <EmptyState
               hasGroups={groups.length > 0}
-              onAddItem={openAddModal}
+              onAddItem={() => openAddModal()}
             />
           ) : (
             <div className="space-y-10">

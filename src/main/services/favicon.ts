@@ -64,6 +64,11 @@ export class FaviconService {
    */
   async getFavicon(url: string, forceRefresh: boolean = false): Promise<string | null> {
     try {
+      // Only process HTTP/HTTPS URLs - skip protocols like afp://, smb://, ftp://, etc.
+      if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) {
+        return null;
+      }
+
       const urlObj = new URL(url);
       const domain = urlObj.hostname;
       const cacheKey = domain.replace(/[^a-zA-Z0-9]/g, '_');
@@ -125,6 +130,11 @@ export class FaviconService {
    */
   hasFavicon(url: string): boolean {
     try {
+      // Only process HTTP/HTTPS URLs
+      if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) {
+        return false;
+      }
+
       const urlObj = new URL(url);
       const domain = urlObj.hostname;
       const cacheKey = domain.replace(/[^a-zA-Z0-9]/g, '_');
@@ -155,6 +165,11 @@ export class FaviconService {
 
     for (const url of urls) {
       try {
+        // Only process HTTP/HTTPS URLs
+        if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) {
+          continue;
+        }
+
         const urlObj = new URL(url);
         const domain = urlObj.hostname;
         const cacheKey = domain.replace(/[^a-zA-Z0-9]/g, '_');

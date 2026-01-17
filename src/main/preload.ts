@@ -88,6 +88,8 @@ const api = {
       ipcRenderer.invoke('system:getTheme'),
     selectApp: (): Promise<IPCResponse<string | null>> =>
       ipcRenderer.invoke('system:selectApp'),
+    getRunningApps: (): Promise<IPCResponse<Array<{ name: string; bundleId?: string; path: string; pid: number }>>> =>
+      ipcRenderer.invoke('system:getRunningApps'),
     openExtensionFolder: (browser: 'chrome' | 'safari'): Promise<IPCResponse<void>> =>
       ipcRenderer.invoke('system:openExtensionFolder', browser),
     getDetectedTerminals: (): Promise<IPCResponse<import('../shared/types').DetectedTerminal[]>> =>

@@ -28,7 +28,7 @@ declare global {
 }
 
 function App() {
-  const { loadData, isLoading, error, refreshTailscaleStatus, fetchFavicons, refreshExpiredFavicons, items, setSyncStatus, settings, isVaultSetup, isVaultLocked, loadData: reloadData, refreshDashboardMetrics, isCommandPaletteOpen, closeCommandPalette, isVaultResetModalOpen, closeVaultResetModal, resetVault } = useStore();
+  const { loadData, isLoading, error, refreshTailscaleStatus, fetchFavicons, refreshExpiredFavicons, items, setSyncStatus, settings, isVaultSetup, isVaultLocked, loadData: reloadData, refreshDashboardMetrics, isCommandPaletteOpen, closeCommandPalette, isVaultResetModalOpen, closeVaultResetModal, resetVault, isAddModalOpen } = useStore();
 
   useEffect(() => {
     loadData();
@@ -82,6 +82,27 @@ function App() {
       };
     }
   }, [reloadData]);
+
+  // Listen for running app add request from tray
+  useEffect(() => {
+    const handleTrayAddRunningApp = (_event: any, data: { name: string; appPath: string }) => {
+      console.log('Add running app from tray:', data);
+      // Open add modal with app data pre-filled
+      useStore.getState().openAddModal({
+        type: 'app',
+        name: data.name,
+        appPath: data.appPath,
+      });
+    };
+
+    // @ts-ignore - window.electron is available in Electron context
+    if (window.electron?.ipcRenderer) {
+      window.electron.ipcRenderer.on('tray:addRunningApp', handleTrayAddRunningApp);
+      return () => {
+        window.electron.ipcRenderer.removeListener('tray:addRunningApp', handleTrayAddRunningApp);
+      };
+    }
+  }, []);
 
   // Listen for backup created events
   useEffect(() => {

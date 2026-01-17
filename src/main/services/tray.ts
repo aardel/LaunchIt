@@ -2,16 +2,24 @@ import { Tray, Menu, nativeImage, app, BrowserWindow, MenuItemConstructorOptions
 import path from 'path';
 import { AnyItem, Group } from '../../shared/types';
 import { LauncherService } from './launcher';
+import { RunningAppsService, RunningApp } from './runningApps';
 
 export class TrayService {
     private tray: Tray | null = null;
     private launcher: LauncherService;
     private getMainWindow: () => BrowserWindow | null;
+    private runningAppsService: RunningAppsService;
+    private onAddRunningApp?: (app: RunningApp) => void;
 
     constructor(launcher: LauncherService, getMainWindow: () => BrowserWindow | null) {
         this.launcher = launcher;
         this.getMainWindow = getMainWindow;
+        this.runningAppsService = new RunningAppsService();
         this.initTray();
+    }
+
+    setOnAddRunningApp(callback: (app: RunningApp) => void) {
+        this.onAddRunningApp = callback;
     }
 
     private initTray() {
@@ -60,13 +68,39 @@ export class TrayService {
         this.updateMenu([], []);
     }
 
-    public updateMenu(groups: Group[], items: AnyItem[]) {
+    public async updateMenu(groups: Group[], items: AnyItem[]) {
         if (!this.tray) return;
 
         const template: MenuItemConstructorOptions[] = [
             { label: 'LaunchIt', enabled: false },
             { type: 'separator' },
         ];
+
+        // Add Running Apps section
+        try {
+            const runningApps = await this.runningAppsService.getRunningApps();
+            if (runningApps.length > 0) {
+                template.push({
+                    label: 'Running Apps',
+                    submenu: runningApps.map(runningApp => ({
+                        label: runningApp.name,
+                        submenu: [
+                            {
+                                label: 'Add to Favorites',
+                                click: () => {
+                                    if (this.onAddRunningApp) {
+                                        this.onAddRunningApp(runningApp);
+                                    }
+                                }
+                            }
+                        ]
+                    }))
+                });
+                template.push({ type: 'separator' });
+            }
+        } catch (error) {
+            console.error('Error loading running apps:', error);
+        }
 
         if (groups.length === 0 && items.length === 0) {
             template.push({ label: 'No bookmarks', enabled: false });
